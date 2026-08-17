@@ -1,0 +1,19 @@
+{
+  "name": "task-manager",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev:api": "pnpm --filter @task-manager/api dev",
+    "dev:desktop": "pnpm --filter @task-manager/desktop dev",
+    "dev:sidecar": "pnpm --filter @task-manager/sidecar dev",
+    "build": "pnpm -r build",
+    "build:api": "pnpm --filter @task-manager/api build",
+    "build:shared": "pnpm --filter @task-manager/shared build",
+    "db:generate": "pnpm --filter @task-manager/api db:generate",
+    "db:push": "pnpm --filter @task-manager/api db:push",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

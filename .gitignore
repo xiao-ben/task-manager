@@ -1,0 +1,36 @@
+# dependencies & caches
+node_modules
+.pnpm-store/
+
+# build output
+dist
+.next
+.turbo
+coverage
+apps/desktop/src-tauri/target
+apps/api/.drizzle
+dist/macos/
+
+# local / secrets — never commit
+.env
+.env.*
+!.env.example
+*.local
+*.token
+*.pem
+*.key
+*.db
+*.db-journal
+
+# tooling
+.DS_Store
+Thumbs.db
+.vercel
+.shots/
+.idea/
+.vscode/
+*.log
+*.tsbuildinfo
+.agents/
+skills-lock.json
+.neon

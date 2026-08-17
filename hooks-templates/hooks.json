@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "node ~/.cursor/hooks/task-manager-session-start.mjs"
+      }
+    ],
+    "beforeSubmitPrompt": [
+      {
+        "command": "node ~/.cursor/hooks/task-manager-session-start.mjs"
+      }
+    ],
+    "afterAgentResponse": [
+      {
+        "command": "node ~/.cursor/hooks/task-manager-stop.mjs"
+      }
+    ],
+    "stop": [
+      {
+        "command": "node ~/.cursor/hooks/task-manager-stop.mjs"
+      }
+    ],
+    "sessionEnd": [
+      {
+        "command": "node ~/.cursor/hooks/task-manager-stop.mjs"
+      }
+    ]
+  }
+}

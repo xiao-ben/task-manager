@@ -1,0 +1,21 @@
+[package]
+name = "task-manager"
+version = "0.1.0"
+description = "Desktop task manager with Cursor integration"
+authors = ["Task Manager contributors"]
+edition = "2021"
+
+[lib]
+name = "task_manager_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "macos-private-api", "image-png"] }
+tauri-plugin-shell = "2"
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+dirs = "6"
