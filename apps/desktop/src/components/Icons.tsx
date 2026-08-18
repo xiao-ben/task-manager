@@ -208,3 +208,25 @@ export function IconMore(props: IconProps) {
     </Svg>
   );
 }
+
+export function IconList(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <line x1="8" y1="6" x2="21" y2="6" />
+      <line x1="8" y1="12" x2="21" y2="12" />
+      <line x1="8" y1="18" x2="21" y2="18" />
+      <line x1="3" y1="6" x2="3.01" y2="6" />
+      <line x1="3" y1="12" x2="3.01" y2="12" />
+      <line x1="3" y1="18" x2="3.01" y2="18" />
+    </Svg>
+  );
+}
+
+export function IconBoard(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3" y="3" width="7" height="18" rx="1.5" />
+      <rect x="14" y="3" width="7" height="12" rx="1.5" />
+    </Svg>
+  );
+}

@@ -4,14 +4,18 @@ import type { AgentRun, Task, TaskStatus } from "@task-manager/shared";
 import { addDays, todayKey } from "@task-manager/shared";
 import { DayPickerField } from "../components/DayPickerField";
 import { PeriodNav } from "../components/PeriodNav";
+import { TaskBoard } from "../components/TaskBoard";
+import { TaskEditModal } from "../components/TaskEditModal";
 import { TaskEditor } from "../components/TaskEditor";
 import { TaskMoreMenu } from "../components/TaskMoreMenu";
 import {
   IconAgent,
+  IconBoard,
   IconEdit,
   IconExternal,
   IconFolder,
   IconInbox,
+  IconList,
   IconPlay,
   IconRefresh,
   IconTrash,
@@ -24,6 +28,12 @@ import {
 } from "../lib/agent";
 import { api } from "../lib/api";
 import { subscribeLocalDbWatch } from "../lib/dbWatch";
+import {
+  loadDayViewPrefs,
+  saveDayViewPrefs,
+  type DayBoardGroupBy,
+  type DayViewMode,
+} from "../lib/dayView";
 import { formatDayTitle, SOURCE_LABEL, STATUS_LABEL } from "../lib/labels";
 import { openInCursor } from "../lib/opencursor";
 import { displayName, pickDirectory } from "../lib/picker";
@@ -57,7 +67,7 @@ function isOpenTask(task: Task) {
 export function DayPage() {
   const toast = useToast();
   const [params, setParams] = useSearchParams();
-  const composerRef = useRef<HTMLInputElement>(null);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
   const [day, setDay] = useState(() => {
     const q = params.get("day");
     return q && /^\d{4}-\d{2}-\d{2}$/.test(q) ? q : todayKey();
@@ -68,6 +78,12 @@ export function DayPage() {
   const [title, setTitle] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "open" | TaskStatus>(
     "all",
+  );
+  const [viewMode, setViewMode] = useState<DayViewMode>(
+    () => loadDayViewPrefs().mode,
+  );
+  const [boardGroupBy, setBoardGroupBy] = useState<DayBoardGroupBy>(
+    () => loadDayViewPrefs().groupBy,
   );
   const [repos, setRepos] = useState<{ id: string; name: string; path: string }[]>(
     [],
@@ -479,12 +495,19 @@ export function DayPage() {
       </header>
 
       <form className="composer" onSubmit={(e) => void onAdd(e)}>
-        <input
+        <textarea
           ref={composerRef}
-          className="input"
-          placeholder={isToday ? "添加今日待办…（N 聚焦）" : `添加 ${day} 待办…`}
+          className="textarea composer-input"
+          rows={2}
+          placeholder={isToday ? "添加今日待办…（N 聚焦，⌘↵ 添加）" : `添加 ${day} 待办…`}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={(e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+              e.preventDefault();
+              void onAdd(e);
+            }
+          }}
           aria-label="新待办"
         />
         <button className="btn primary" type="submit">
@@ -594,45 +617,131 @@ export function DayPage() {
 
       <section className="group">
         <div className="group-header">
-          <h2 className="headline">待办列表 · {visibleTasks.length}</h2>
+          <h2 className="headline">
+            {viewMode === "board" ? "看板" : "待办列表"} ·{" "}
+            {viewMode === "board" ? tasks.length : visibleTasks.length}
+          </h2>
           <div className="row filter-row">
-            {(
-              [
-                ["all", "全部"],
-                ["open", "未完成"],
-                ["doing", "进行中"],
-                ["done", "完成"],
-              ] as const
-            ).map(([key, label]) => (
+            <div className="seg" role="group" aria-label="视图切换">
               <button
-                key={key}
                 type="button"
-                className={`btn sm ${statusFilter === key ? "primary" : "bordered"}`}
-                onClick={() => setStatusFilter(key)}
+                className={`seg-item icon ${viewMode === "list" ? "active" : ""}`}
+                title="列表视图"
+                aria-label="列表视图"
+                aria-pressed={viewMode === "list"}
+                onClick={() => {
+                  setViewMode("list");
+                  saveDayViewPrefs({ mode: "list" });
+                }}
               >
-                {label}
+                <IconList size={14} />
               </button>
-            ))}
+              <button
+                type="button"
+                className={`seg-item icon ${viewMode === "board" ? "active" : ""}`}
+                title="看板视图"
+                aria-label="看板视图"
+                aria-pressed={viewMode === "board"}
+                onClick={() => {
+                  setViewMode("board");
+                  saveDayViewPrefs({ mode: "board" });
+                }}
+              >
+                <IconBoard size={14} />
+              </button>
+            </div>
+            {viewMode === "board" ? (
+              <div className="seg" role="group" aria-label="分组方式">
+                <button
+                  type="button"
+                  className={`seg-item ${boardGroupBy === "status" ? "active" : ""}`}
+                  aria-pressed={boardGroupBy === "status"}
+                  onClick={() => {
+                    setBoardGroupBy("status");
+                    saveDayViewPrefs({ groupBy: "status" });
+                  }}
+                >
+                  状态
+                </button>
+                <button
+                  type="button"
+                  className={`seg-item ${boardGroupBy === "workspace" ? "active" : ""}`}
+                  aria-pressed={boardGroupBy === "workspace"}
+                  onClick={() => {
+                    setBoardGroupBy("workspace");
+                    saveDayViewPrefs({ groupBy: "workspace" });
+                  }}
+                >
+                  工作区
+                </button>
+              </div>
+            ) : (
+              <div className="seg" role="group" aria-label="状态筛选">
+                {(
+                  [
+                    ["all", "全部"],
+                    ["open", "未完成"],
+                    ["doing", "进行中"],
+                    ["done", "完成"],
+                  ] as const
+                ).map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className={`seg-item ${statusFilter === key ? "active" : ""}`}
+                    aria-pressed={statusFilter === key}
+                    onClick={() => setStatusFilter(key)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
-        {visibleTasks.length === 0 ? (
+        {tasks.length === 0 ? (
           <div className="empty">
             <div className="empty-icon">
               <IconInbox size={22} />
             </div>
             <div className="headline" style={{ fontSize: 15, color: "var(--label)" }}>
-              {tasks.length === 0
-                ? isToday
-                  ? "今天还没有任务"
-                  : "这一天没有任务"
-                : "没有符合筛选的任务"}
+              {isToday ? "今天还没有任务" : "这一天没有任务"}
             </div>
             <p className="subhead" style={{ margin: 0 }}>
-              {tasks.length === 0
-                ? "在上方输入，或用日历切换到其他日期"
-                : "试试切换筛选条件"}
+              在上方输入，或用日历切换到其他日期
             </p>
           </div>
+        ) : viewMode === "list" && visibleTasks.length === 0 ? (
+          <div className="empty">
+            <div className="empty-icon">
+              <IconInbox size={22} />
+            </div>
+            <div className="headline" style={{ fontSize: 15, color: "var(--label)" }}>
+              没有符合筛选的任务
+            </div>
+            <p className="subhead" style={{ margin: 0 }}>
+              试试切换筛选条件
+            </p>
+          </div>
+        ) : viewMode === "board" ? (
+          <TaskBoard
+            tasks={sortTasks(tasks)}
+            repos={repos}
+            groupBy={boardGroupBy}
+            busyId={busyId}
+            onMoveStatus={async (task, status) => {
+              await updateTaskOptimistic(task.id, { status });
+              syncTasksFromCache();
+            }}
+            onMoveWorkspace={async (task, repoPath) => {
+              await updateTaskOptimistic(task.id, { repoPath });
+              syncTasksFromCache();
+            }}
+            onOpenTask={(task) =>
+              startTransition(() => setEditingId(task.id))
+            }
+            onStartAgent={(task) => void onStartAgent(task)}
+          />
         ) : (
           <div className="list">
             {visibleTasks.map((task) => (
@@ -914,6 +1023,52 @@ export function DayPage() {
               )}
               </Fragment>
             ))}
+          </div>
+        )}
+        {viewMode === "board" && editingId && (() => {
+          const task = tasks.find((t) => t.id === editingId);
+          if (!task) return null;
+          return (
+            <TaskEditModal
+              task={task}
+              onCancel={() => startTransition(() => setEditingId(null))}
+              onDone={() => {
+                startTransition(() => {
+                  setEditingId(null);
+                  syncTasksFromCache();
+                });
+              }}
+            />
+          );
+        })()}
+        {viewMode === "board" && pickerFor && (
+          <div className="repo-picker" style={{ margin: "10px 0 0" }}>
+            <div className="repo-picker-title subhead">
+              {pickerLoading
+                ? "读取 Cursor 最近目录…"
+                : `从 Cursor 最近打开中选择 · ${candidates.length} 项`}
+            </div>
+            {!pickerLoading &&
+              candidates.slice(0, 12).map((w) => {
+                const task = tasks.find((t) => t.id === pickerFor);
+                if (!task) return null;
+                return (
+                  <button
+                    key={w.path}
+                    className="repo-picker-item"
+                    type="button"
+                    onClick={() => void bindRepo(task, w.path, w.name)}
+                  >
+                    <span className="headline" style={{ fontSize: 14 }}>
+                      {w.name}
+                    </span>
+                    {w.kind === "workspace" && (
+                      <span className="pill neutral">工作区</span>
+                    )}
+                    <span className="path-mono">{w.path}</span>
+                  </button>
+                );
+              })}
           </div>
         )}
       </section>

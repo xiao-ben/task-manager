@@ -82,16 +82,23 @@ export function TaskEditor({ task, onDone, onCancel }: Props) {
   return (
     <div className="task-editor">
       <div className="task-editor-grid">
-        <label className="field">
+        <label className="field span-full">
           <span className="field-label">标题</span>
-          <input
-            className="input"
+          <textarea
+            className="textarea title-area"
+            rows={2}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            placeholder="任务标题…"
             aria-label="任务标题"
           />
         </label>
-        <DayPickerField value={day} onChange={setDay} label="日期" />
+        <DayPickerField
+          value={day}
+          onChange={setDay}
+          label="日期"
+          showTodayQuick={false}
+        />
         <label className="field">
           <span className="field-label">状态</span>
           <select
@@ -107,11 +114,11 @@ export function TaskEditor({ task, onDone, onCancel }: Props) {
             ))}
           </select>
         </label>
-        <label className="field span-2">
+        <label className="field span-full">
           <span className="field-label">备注</span>
           <textarea
             className="textarea"
-            rows={3}
+            rows={4}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="可选备注…"
