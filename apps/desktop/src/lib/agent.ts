@@ -1,27 +1,68 @@
-import { loadSettings } from "./settings";
+import { loadSettings, type AgentDispatchMode } from "./settings";
+import { taskPromptText } from "./opencursor";
+
+export type StartAgentResult = {
+  agentId: string;
+  runId?: string;
+  mode: AgentDispatchMode;
+  agentsUrl?: string;
+};
+
+function taskPrompt(task: {
+  id?: string;
+  title: string;
+  notes?: string | null;
+}): string {
+  return taskPromptText({
+    title: task.title,
+    notes: task.notes,
+    taskId: task.id,
+  });
+}
 
 export async function startAgent(input: {
   taskId: string;
   prompt: string;
   cwd: string;
-}): Promise<{ agentId: string; runId?: string }> {
-  const { sidecarUrl, cursorApiKey, apiBaseUrl, apiToken } = loadSettings();
-  const res = await fetch(`${sidecarUrl.replace(/\/$/, "")}/agent/start`, {
+  mode?: AgentDispatchMode;
+}): Promise<StartAgentResult> {
+  const settings = loadSettings();
+  const mode = input.mode ?? settings.agentDispatchMode ?? "cursor";
+  const { sidecarUrl, cursorApiKey, apiBaseUrl, apiToken, myMachineName } =
+    settings;
+
+  if (mode === "cursor") {
+    throw new Error("cursor 模式请使用 openTaskInCursorChat()");
+  }
+
+  const path =
+    mode === "machine" ? "/agent/start-machine" : "/agent/start";
+  const res = await fetch(`${sidecarUrl.replace(/\/$/, "")}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      ...input,
+      taskId: input.taskId,
+      prompt: input.prompt,
+      cwd: input.cwd,
       cursorApiKey,
       apiBaseUrl,
       apiToken,
+      machineName: myMachineName || undefined,
     }),
   });
   const body = await res.json();
   if (!res.ok) {
     throw new Error(body.error ?? "Failed to start agent");
   }
-  return body;
+  return {
+    agentId: body.agentId,
+    runId: body.runId,
+    mode,
+    agentsUrl: body.agentsUrl,
+  };
 }
+
+export { taskPrompt };
 
 export type CursorWorkspace = {
   /** 文件夹或 .code-workspace 文件路径 */
@@ -74,10 +115,15 @@ export async function generateSummaryWithCursor(input: {
       res = await fetch(`${sidecarUrl.replace(/\/$/, "")}/summary/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...input, cursorApiKey: cursorApiKey || undefined }),
+        body: JSON.stringify({
+          ...input,
+          cursorApiKey: cursorApiKey || undefined,
+        }),
       });
     } catch {
-      throw new Error("sidecar 未运行（请打开设置页点「启动 Sidecar」，或确认已安装 Node.js）");
+      throw new Error(
+        "sidecar 未运行（请打开设置页点「启动 Sidecar」，或确认已安装 Node.js）",
+      );
     }
   }
   const body = await res.json();

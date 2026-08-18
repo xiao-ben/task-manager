@@ -2314,8 +2314,8 @@ body.kanban-dragging * {
 
 .more-menu-panel {
   z-index: 40;
-  min-width: 200px;
-  width: 200px;
+  min-width: 220px;
+  width: 220px;
   padding: 6px;
   border-radius: 12px;
   background: var(--panel, #fff);

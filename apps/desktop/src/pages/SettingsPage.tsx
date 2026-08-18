@@ -408,6 +408,34 @@ export function SettingsPage() {
             />
           </div>
           <div className="field">
+            <span className="field-label">任务打开方式</span>
+            <div className="seg" role="group" aria-label="任务派发方式">
+              {(
+                [
+                  ["cursor", "经典 Cursor Chat"],
+                  ["local", "静默执行"],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={`seg-item ${settings.agentDispatchMode === key ? "active" : ""}`}
+                  onClick={() => {
+                    const next = saveSettings({ agentDispatchMode: key });
+                    setSettings(next);
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <span className="field-hint">
+              {settings.agentDispatchMode === "local"
+                ? "通过 sidecar 后台启动 Agent，无需打开 Cursor、也不用确认发送。过程可在任务台查看。需要 CURSOR_API_KEY。"
+                : "新开经典窗口并预填 query，不会关掉已有 Agents Window；仍需在 Cursor 中确认发送。"}
+            </span>
+          </div>
+          <div className="field">
             <label className="field-label" htmlFor="sidecar">
               Sidecar URL
             </label>

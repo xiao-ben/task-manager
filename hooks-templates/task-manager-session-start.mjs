@@ -103,9 +103,32 @@ function extractPrompt(input) {
   return String(raw).trim().slice(0, 2000);
 }
 
+const TASK_ID_RE = /\[任务台:([0-9a-fA-F-]{8,})\]/;
+
+function unwrapDispatchPrompt(prompt) {
+  let s = String(prompt || "").replace(/\r\n/g, "\n");
+  const idMatch = s.match(TASK_ID_RE);
+  const taskId = idMatch ? idMatch[1] : null;
+  s = s.replace(TASK_ID_RE, "").trim();
+  if (/^请完成以下任务[：:]/.test(s)) {
+    s = s.replace(/^请完成以下任务[：:]\s*/, "");
+    const notesIdx = s.search(/\n\n备注[：:]/);
+    if (notesIdx >= 0) s = s.slice(0, notesIdx);
+  }
+  return { taskId, body: s.trim() };
+}
+
+function normalizeTitle(s) {
+  return String(s || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
 /** 用首条诉求做可读标题，避免长期停在「Cursor 会话进行中」 */
 function titleFromPrompt(prompt) {
-  const line = String(prompt || "")
+  const unwrapped = unwrapDispatchPrompt(prompt).body;
+  const line = String(unwrapped || prompt || "")
     .split(/\r?\n/)
     .map((s) => s.trim())
     .find(Boolean);
@@ -113,12 +136,64 @@ function titleFromPrompt(prompt) {
   return line.length > 72 ? `${line.slice(0, 72)}…` : line;
 }
 
-function upsertLocalDoing({ sessionId, day, cwd, prompt }) {
+function isOpenTask(t) {
+  return t.status === "todo" || t.status === "doing";
+}
+
+function findExistingTask(db, { sessionId, taskId, prompt, day, cwd }) {
+  if (taskId) {
+    const byId = db.tasks.find((t) => t.id === taskId);
+    if (byId) return byId;
+  }
+  if (sessionId) {
+    const bySession = db.tasks.find((t) => t.cursorSessionId === sessionId);
+    if (bySession) return bySession;
+  }
+  const want = normalizeTitle(titleFromPrompt(prompt) || "");
+  if (!want) return null;
+  const open = db.tasks.filter(isOpenTask);
+  const titleOf = (t) =>
+    normalizeTitle(unwrapDispatchPrompt(t.title).body || t.title);
+  const matches = open.filter((t) => titleOf(t) === want);
+  if (matches.length === 0) return null;
+  const sameDay = matches.filter((t) => t.day === day);
+  const pool = sameDay.length ? sameDay : matches;
+  if (cwd) {
+    const sameRepo = pool.find((t) => t.repoPath === cwd);
+    if (sameRepo) return sameRepo;
+  }
+  return pool.find((t) => t.status === "doing") || pool[0];
+}
+
+function collapseDispatchDuplicates(db, keepId, prompt, day) {
+  const want = normalizeTitle(titleFromPrompt(prompt) || "");
+  if (!want) return;
+  const now = new Date().toISOString();
+  db.tasks = db.tasks.map((t) => {
+    if (t.id === keepId) return t;
+    if (!isOpenTask(t) || t.day !== day) return t;
+    if (t.source !== "cursor") return t;
+    const raw = String(t.title || "");
+    if (!/^请完成以下任务/.test(raw) && !TASK_ID_RE.test(raw)) return t;
+    if (normalizeTitle(unwrapDispatchPrompt(raw).body || raw) !== want) {
+      return t;
+    }
+    log(`collapse duplicate cursor task ${t.id}`);
+    return { ...t, status: "cancelled", updatedAt: now };
+  });
+}
+
+function upsertLocalDoing({ sessionId, day, cwd, prompt, taskId }) {
   const db = readLocalDb();
   const now = new Date().toISOString();
-  let task = sessionId
-    ? db.tasks.find((t) => t.cursorSessionId === sessionId)
-    : null;
+  const resolvedId = taskId || unwrapDispatchPrompt(prompt).taskId;
+  let task = findExistingTask(db, {
+    sessionId,
+    taskId: resolvedId,
+    prompt,
+    day,
+    cwd,
+  });
   if (task) {
     const nextTitle =
       task.title === PROVISIONAL_TITLE && prompt
@@ -131,20 +206,22 @@ function upsertLocalDoing({ sessionId, day, cwd, prompt }) {
       day,
       updatedAt: now,
       repoPath: cwd || task.repoPath,
+      cursorSessionId: sessionId || task.cursorSessionId,
     };
     db.tasks = db.tasks.map((t) => (t.id === task.id ? task : t));
+    collapseDispatchDuplicates(db, task.id, prompt, day);
     writeLocalDb(db);
-    log(`local update task ${task.id} -> doing`);
-    return;
+    log(`local update task ${task.id} -> doing (reuse, no duplicate)`);
+    return task;
   }
   // sessionStart 常无 prompt：此时不建占位任务，等 beforeSubmitPrompt 再写
   if (!prompt) {
     log("skip create: no prompt yet (wait for beforeSubmitPrompt)");
-    return;
+    return null;
   }
   const title = titleFromPrompt(prompt) || PROVISIONAL_TITLE;
   task = {
-    id: crypto.randomUUID(),
+    id: resolvedId || crypto.randomUUID(),
     title,
     notes: `进行中…\n\n最近诉求：${prompt.slice(0, 200)}`,
     status: "doing",
@@ -159,9 +236,41 @@ function upsertLocalDoing({ sessionId, day, cwd, prompt }) {
   db.tasks.push(task);
   writeLocalDb(db);
   log(`local create task ${task.id} title=${title}`);
+  return task;
 }
 
-async function upsertRemoteDoing({ apiBase, token, sessionId, day, cwd, prompt }) {
+async function upsertRemoteDoing({ apiBase, token, sessionId, day, cwd, prompt, taskId }) {
+  const resolvedId = taskId || unwrapDispatchPrompt(prompt).taskId;
+  if (resolvedId) {
+    try {
+      const res = await fetch(`${apiBase.replace(/\/$/, "")}/api/tasks/${resolvedId}`, {
+        headers: { Authorization: "Bearer " + token },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const task = data.task || data;
+        if (task?.id) {
+          log(`updating existing task ${task.id} to doing (by id)`);
+          await fetch(`${apiBase.replace(/\/$/, "")}/api/tasks/${task.id}`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + token,
+            },
+            body: JSON.stringify({
+              status: "doing",
+              day,
+              repoPath: cwd || task.repoPath,
+              cursorSessionId: sessionId || task.cursorSessionId,
+            }),
+          });
+          return task;
+        }
+      }
+    } catch (e) {
+      log(`lookup by id failed: ${e.message}`);
+    }
+  }
   if (sessionId) {
     const q = new URLSearchParams({ cursorSessionId: sessionId });
     const res = await fetch(`${apiBase.replace(/\/$/, "")}/api/tasks?${q}`, {
@@ -183,17 +292,17 @@ async function upsertRemoteDoing({ apiBase, token, sessionId, day, cwd, prompt }
         },
         body: JSON.stringify(patch),
       });
-      return;
+      return task;
     }
   }
 
   if (!prompt) {
     log("skip remote create: no prompt yet");
-    return;
+    return null;
   }
   const title = titleFromPrompt(prompt) || PROVISIONAL_TITLE;
   log(`creating task: ${title}`);
-  await fetch(`${apiBase.replace(/\/$/, "")}/api/tasks`, {
+  const created = await fetch(`${apiBase.replace(/\/$/, "")}/api/tasks`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -209,6 +318,12 @@ async function upsertRemoteDoing({ apiBase, token, sessionId, day, cwd, prompt }
       status: "doing",
     }),
   });
+  try {
+    const data = await created.json();
+    return data.task || data;
+  } catch {
+    return null;
+  }
 }
 
 async function main() {
@@ -234,35 +349,46 @@ async function main() {
   const cwd = input.workspace_roots?.[0] || input.cwd || null;
   const sessionId = input.conversation_id || input.session_id || null;
   const day = new Date().toISOString().slice(0, 10);
+  const taskId = unwrapDispatchPrompt(prompt).taskId;
 
-  if (sessionId && prompt) {
-    const session = loadSession(sessionId);
-    session.workspace = cwd || session.workspace;
-    if (!session.prompts.includes(prompt)) {
-      session.prompts.push(prompt);
-      if (session.prompts.length > 40) session.prompts = session.prompts.slice(-40);
-    }
-    saveSession(session);
-  }
-
+  let written = null;
   try {
     if (storageMode === "local") {
-      upsertLocalDoing({ sessionId, day, cwd, prompt });
+      written = upsertLocalDoing({ sessionId, day, cwd, prompt, taskId });
     } else {
       if (!apiBase || !token) {
         log("remote mode missing apiBaseUrl or token; falling back to local");
-        upsertLocalDoing({ sessionId, day, cwd, prompt });
+        written = upsertLocalDoing({ sessionId, day, cwd, prompt, taskId });
       } else {
-        await upsertRemoteDoing({ apiBase, token, sessionId, day, cwd, prompt });
+        written = await upsertRemoteDoing({
+          apiBase,
+          token,
+          sessionId,
+          day,
+          cwd,
+          prompt,
+          taskId,
+        });
       }
     }
   } catch (e) {
     log(`write error: ${e.message}`);
     try {
-      upsertLocalDoing({ sessionId, day, cwd, prompt });
+      written = upsertLocalDoing({ sessionId, day, cwd, prompt, taskId });
     } catch (e2) {
       log(`local fallback failed: ${e2.message}`);
     }
+  }
+
+  if (sessionId && (prompt || written?.id)) {
+    const session = loadSession(sessionId);
+    session.workspace = cwd || session.workspace;
+    if (written?.id) session.taskId = written.id;
+    if (prompt && !session.prompts.includes(prompt)) {
+      session.prompts.push(prompt);
+      if (session.prompts.length > 40) session.prompts = session.prompts.slice(-40);
+    }
+    saveSession(session);
   }
   process.stdout.write(JSON.stringify({}));
 }

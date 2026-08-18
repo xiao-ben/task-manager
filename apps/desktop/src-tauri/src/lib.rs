@@ -87,48 +87,101 @@ fn hide_widget(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+fn cursor_cli_bins() -> [&'static str; 2] {
+    [
+        "/Applications/Cursor.app/Contents/Resources/app/bin/cursor",
+        "/Applications/Cursor.app/Contents/MacOS/Cursor",
+    ]
+}
+
+/// 在新的经典 Cursor 窗口中打开任务绑定的工作区。
+/// 必须用 `-n`（新窗口），不能用 `-r`：复用最近窗口会把已打开的 Agents Window 改成经典编辑器。
+fn open_classic_workspace(path: &str) -> Result<(), String> {
+    use std::process::Command;
+
+    for bin in cursor_cli_bins() {
+        if !PathBuf::from(bin).exists() {
+            continue;
+        }
+
+        eprintln!("open_classic_workspace: {bin} --classic -n {path}");
+        let workspace_opened = Command::new(bin)
+            .args(["--classic", "-n", path])
+            .status()
+            .map_err(|e| e.to_string())?;
+        eprintln!(
+            "open_classic_workspace: {} exit={}",
+            bin,
+            workspace_opened.code().unwrap_or(-1)
+        );
+        if workspace_opened.success() {
+            return Ok(());
+        }
+    }
+
+    Err("无法在经典 Cursor 窗口中打开目标工作区".into())
+}
+
 #[tauri::command]
 fn open_in_cursor(path: String) -> Result<(), String> {
-    use std::process::Command;
     let p = PathBuf::from(&path);
     if !p.exists() {
         return Err(format!("路径不存在：{path}"));
     }
 
-    // 优先走 Cursor CLI + --classic：新版默认可能进 Glass/Agents，而不是经典 IDE
-    let cursor_bins = [
-        "/Applications/Cursor.app/Contents/Resources/app/bin/cursor",
-        "/Applications/Cursor.app/Contents/MacOS/Cursor",
-    ];
-    for bin in cursor_bins {
-        if !PathBuf::from(bin).exists() {
-            continue;
-        }
-        let status = Command::new(bin)
-            .args(["--classic", "-n", &path])
-            .status()
-            .map_err(|e| e.to_string())?;
-        if status.success() {
-            return Ok(());
-        }
+    open_classic_workspace(&path)
+}
+
+/// 聚焦经典 Cursor Chat，并用 deeplink 预填 query。
+#[tauri::command]
+fn open_cursor_with_prompt(path: String, prompt: String) -> Result<(), String> {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+    use std::thread;
+    use std::time::Duration;
+
+    let p = PathBuf::from(&path);
+    if !p.exists() {
+        return Err(format!("路径不存在：{path}"));
+    }
+    if prompt.trim().is_empty() {
+        return Err("prompt 不能为空".into());
     }
 
-    // 兜底：按 bundle id 打开桌面版 Cursor.app（避免被系统默认关联抢走）
+    // 1) 开一个新的经典窗口绑定任务 repoPath，不碰已有 Agents Window。
+    open_classic_workspace(&path)?;
+
+    // 2) 剪贴板兜底（deeplink 偶发未写入时，用户可 ⌘V）
+    if let Ok(mut child) = Command::new("pbcopy").stdin(Stdio::piped()).spawn() {
+        if let Some(mut stdin) = child.stdin.take() {
+            let _ = stdin.write_all(prompt.as_bytes());
+        }
+        let _ = child.wait();
+    }
+
+    // 3) 等新经典窗口就绪后再打 deeplink（会落到刚打开的窗口）。
+    thread::sleep(Duration::from_millis(1500));
+
+    let encoded: String = prompt
+        .bytes()
+        .map(|b| match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                (b as char).to_string()
+            }
+            _ => format!("%{b:02X}"),
+        })
+        .collect();
+    let url = format!("cursor://anysphere.cursor-deeplink/prompt?text={encoded}");
+
+    // 用系统 open 打开 deeplink（比前端 shell.open 更稳，query 不易丢）
     let status = Command::new("open")
-        .args([
-            "-b",
-            "com.todesktop.230313mzl4w4u92",
-            "-n",
-            "--args",
-            "--classic",
-            &path,
-        ])
+        .arg(&url)
         .status()
         .map_err(|e| e.to_string())?;
     if status.success() {
         Ok(())
     } else {
-        Err("唤起 Cursor IDE 失败，请确认已安装 /Applications/Cursor.app".into())
+        Err("已复制任务到剪贴板，但 Cursor prompt deeplink 打开失败".into())
     }
 }
 
@@ -270,6 +323,7 @@ pub fn run() {
             hide_widget,
             show_main,
             open_in_cursor,
+            open_cursor_with_prompt,
             set_tray_title,
             read_local_db,
             write_local_db,

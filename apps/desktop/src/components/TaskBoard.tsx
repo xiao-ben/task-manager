@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import type { Task, TaskStatus } from "@task-manager/shared";
 import { STATUS_LABEL, SOURCE_LABEL } from "../lib/labels";
 import { displayName } from "../lib/picker";
+import { dispatchPlayLabel } from "../lib/settings";
 import { sortTasks } from "../lib/taskOrder";
 import { IconEdit, IconPlay } from "./Icons";
 
@@ -357,8 +358,8 @@ export function TaskBoard({
                         <button
                           className="kanban-action"
                           type="button"
-                          title="派发 Agent"
-                          aria-label="派发 Agent"
+                          title={dispatchPlayLabel()}
+                          aria-label={dispatchPlayLabel()}
                           disabled={busyId === task.id}
                           onPointerDown={(e) => e.stopPropagation()}
                           onClick={(e) => {

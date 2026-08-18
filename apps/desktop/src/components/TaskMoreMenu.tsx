@@ -20,7 +20,7 @@ export function TaskMoreMenu({ open, onOpenChange, children }: Props) {
     if (!btn) return;
     const rect = btn.getBoundingClientRect();
     const gutter = 8;
-    const width = 200;
+    const width = 220;
     const spaceBelow = window.innerHeight - rect.bottom - gutter;
     const spaceAbove = rect.top - gutter;
     const openUp = spaceBelow < 280 && spaceAbove > spaceBelow;
