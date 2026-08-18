@@ -24,6 +24,7 @@ import {
   generateSummaryWithCursor,
   listCursorWorkspaces,
   startAgent,
+  taskPrompt,
   type CursorWorkspace,
 } from "../lib/agent";
 import { api } from "../lib/api";
@@ -35,8 +36,18 @@ import {
   type DayViewMode,
 } from "../lib/dayView";
 import { formatDayTitle, SOURCE_LABEL, STATUS_LABEL } from "../lib/labels";
-import { openInCursor } from "../lib/opencursor";
+import {
+  agentsUrlForId,
+  openExternalUrl,
+  openInCursor,
+  openTaskInCursorChat,
+} from "../lib/opencursor";
 import { displayName, pickDirectory } from "../lib/picker";
+import {
+  dispatchPlayLabel,
+  loadSettings,
+  type AgentDispatchMode,
+} from "../lib/settings";
 import {
   isOpenStatus,
   nextCheckboxStatus,
@@ -407,32 +418,61 @@ export function DayPage() {
     }
   }
 
-  async function onStartAgent(task: Task) {
+  async function onStartAgent(
+    task: Task,
+    modeOverride?: AgentDispatchMode,
+  ) {
     const repoPath = task.repoPath || (repos[0]?.path ?? "");
     if (!repoPath) {
       await onPickRepo(task);
       return;
     }
+    const mode =
+      modeOverride ?? loadSettings().agentDispatchMode ?? "cursor";
     setBusyId(task.id);
     setMsg(null);
     try {
       if (!task.repoPath) {
         await updateTaskOptimistic(task.id, { repoPath });
       }
+      const prompt = taskPrompt(task);
+
+      if (mode === "cursor") {
+        await openTaskInCursorChat({
+          cwd: repoPath,
+          title: task.title,
+          notes: task.notes,
+          taskId: task.id,
+        });
+        await updateTaskOptimistic(task.id, {
+          status: "doing",
+          repoPath,
+        });
+        flash("已在 Cursor 预填任务（也已复制到剪贴板）；请确认发送");
+        syncTasksFromCache();
+        return;
+      }
+
       const result = await startAgent({
         taskId: task.id,
-        prompt: `请完成以下任务：${task.title}${task.notes ? `\n\n备注：${task.notes}` : ""}`,
+        prompt,
         cwd: repoPath,
+        mode,
       });
       await updateTaskOptimistic(task.id, {
         status: "doing",
         cursorAgentId: result.agentId,
         repoPath,
       });
-      flash(`Agent 已启动：${result.agentId}`);
+      if (mode === "machine") {
+        const url = result.agentsUrl ?? agentsUrlForId(result.agentId);
+        flash(`Remote Control 已启动：${result.agentId}`);
+        void openExternalUrl(url).catch(() => {});
+      } else {
+        flash(`已静默启动后台 Agent：${result.agentId}`);
+      }
       syncTasksFromCache();
       setRunsFor(task.id);
-      // sidecar 已写入本地 agentRuns；稍后再读一次覆盖完成态
       void listAgentRunsLocal(task.id).then(setRuns);
       window.setTimeout(() => {
         void listAgentRunsLocal(task.id).then(setRuns);
@@ -798,8 +838,12 @@ export function DayPage() {
                   <button
                     className="btn icon"
                     type="button"
-                    title={busyId === task.id ? "派发中…" : "派发 Agent"}
-                    aria-label="派发 Agent 任务"
+                    title={
+                      busyId === task.id
+                        ? "派发中…"
+                        : `派发（${dispatchPlayLabel()}）`
+                    }
+                    aria-label={`派发任务：${dispatchPlayLabel()}`}
                     disabled={busyId === task.id}
                     onClick={() => void onStartAgent(task)}
                   >
@@ -878,6 +922,46 @@ export function DayPage() {
                         }}
                       >
                         <IconExternal size={14} /> 在 Cursor 打开
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      role="menuitem"
+                      disabled={busyId === task.id}
+                      onClick={() => {
+                        setMenuFor(null);
+                        void onStartAgent(task, "cursor");
+                      }}
+                    >
+                      <IconPlay size={14} /> 在经典 Cursor Chat 中处理
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      disabled={busyId === task.id}
+                      onClick={() => {
+                        setMenuFor(null);
+                        void onStartAgent(task, "local");
+                      }}
+                    >
+                      <IconAgent size={14} /> 静默直接执行
+                    </button>
+                    {task.cursorAgentId?.startsWith("bc-") && (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setMenuFor(null);
+                          void openExternalUrl(
+                            agentsUrlForId(task.cursorAgentId!),
+                          )
+                            .then(() => flash("已打开 Agents 会话"))
+                            .catch(() =>
+                              flash("打开 Agents 链接失败", "err"),
+                            );
+                        }}
+                      >
+                        <IconExternal size={14} /> 在 Agents 中接力
                       </button>
                     )}
                     {task.status === "doing" && (
@@ -985,6 +1069,19 @@ export function DayPage() {
                               onClick={() => void onStartAgent(task)}
                             >
                               重试
+                            </button>
+                          )}
+                          {task.cursorAgentId?.startsWith("bc-") && (
+                            <button
+                              className="btn sm plain"
+                              type="button"
+                              onClick={() =>
+                                void openExternalUrl(
+                                  agentsUrlForId(task.cursorAgentId!),
+                                ).catch(() => {})
+                              }
+                            >
+                              Agents 接力
                             </button>
                           )}
                           {task.repoPath && (

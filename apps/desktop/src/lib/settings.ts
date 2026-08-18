@@ -1,3 +1,6 @@
+/** cursor=经典 Cursor Chat 预填；local=sidecar 静默执行；machine=Remote Control */
+export type AgentDispatchMode = "cursor" | "machine" | "local";
+
 export type AppSettings = {
   apiBaseUrl: string;
   apiToken: string;
@@ -5,6 +8,10 @@ export type AppSettings = {
   sidecarUrl: string;
   /** When true, bidirectional sync with configured API. Default: local-only. */
   syncEnabled: boolean;
+  /** 默认派发方式 */
+  agentDispatchMode: AgentDispatchMode;
+  /** My Machines worker 名称（agent worker start --name） */
+  myMachineName: string;
   widgetPosition?: { x: number; y: number };
 };
 
@@ -16,6 +23,8 @@ const defaults: AppSettings = {
   cursorApiKey: "",
   sidecarUrl: "http://127.0.0.1:3927",
   syncEnabled: false,
+  agentDispatchMode: "cursor",
+  myMachineName: "task-manager",
 };
 
 export function loadSettings(): AppSettings {
@@ -25,6 +34,16 @@ export function loadSettings(): AppSettings {
     const parsed = { ...defaults, ...JSON.parse(raw) } as AppSettings;
     if (typeof parsed.syncEnabled !== "boolean") {
       parsed.syncEnabled = false;
+    }
+    if (
+      parsed.agentDispatchMode !== "cursor" &&
+      parsed.agentDispatchMode !== "local" &&
+      parsed.agentDispatchMode !== "machine"
+    ) {
+      parsed.agentDispatchMode = "cursor";
+    }
+    if (typeof parsed.myMachineName !== "string" || !parsed.myMachineName.trim()) {
+      parsed.myMachineName = defaults.myMachineName;
     }
     return parsed;
   } catch {
@@ -36,4 +55,12 @@ export function saveSettings(partial: Partial<AppSettings>): AppSettings {
   const next = { ...loadSettings(), ...partial };
   localStorage.setItem(KEY, JSON.stringify(next));
   return next;
+}
+
+export function dispatchPlayLabel(
+  mode: AgentDispatchMode = loadSettings().agentDispatchMode,
+): string {
+  if (mode === "local") return "静默执行";
+  if (mode === "machine") return "Remote Control 派发";
+  return "经典 Cursor Chat 预填";
 }

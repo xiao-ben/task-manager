@@ -24,6 +24,9 @@ const StartSchema = z.object({
   apiBaseUrl: z.string().optional(),
   apiToken: z.string().optional(),
   model: z.string().optional(),
+  machineName: z.string().optional(),
+  repoUrl: z.string().optional(),
+  startingRef: z.string().optional(),
 });
 
 const SummarySchema = z.object({
@@ -451,7 +454,198 @@ async function startAgent(input: z.infer<typeof StartSchema>) {
     repoPath: input.cwd,
   });
 
-  return { agentId, runId: run.id };
+  return { agentId, runId: run.id, mode: "local" as const };
+}
+
+/** git@host:org/repo.git → https://host/org/repo */
+function normalizeGitRemoteUrl(raw: string): string {
+  const trimmed = raw.trim();
+  const ssh = /^git@([^:]+):(.+?)(?:\.git)?$/.exec(trimmed);
+  if (ssh) return `https://${ssh[1]}/${ssh[2].replace(/\.git$/, "")}`;
+  if (trimmed.endsWith(".git")) return trimmed.slice(0, -4);
+  return trimmed;
+}
+
+async function resolveGitRepo(cwd: string): Promise<{ url: string; ref: string }> {
+  try {
+    const { stdout: remote } = await execFileAsync(
+      "git",
+      ["-C", cwd, "remote", "get-url", "origin"],
+      { encoding: "utf8" },
+    );
+    let ref = "main";
+    try {
+      const { stdout: branch } = await execFileAsync(
+        "git",
+        ["-C", cwd, "rev-parse", "--abbrev-ref", "HEAD"],
+        { encoding: "utf8" },
+      );
+      const b = branch.trim();
+      if (b && b !== "HEAD") ref = b;
+    } catch {
+      /* keep main */
+    }
+    return { url: normalizeGitRemoteUrl(remote), ref };
+  } catch {
+    throw new Error(
+      `无法从 ${cwd} 读取 git remote。My Machines 派发需要仓库已配置 origin。`,
+    );
+  }
+}
+
+/**
+ * My Machines：Cloud Agent 会话可见于 Cursor Agents Window，
+ * 工具调用在本机 worker 上执行（需先 `agent worker start --name …`）。
+ */
+async function startMachineAgent(input: z.infer<typeof StartSchema>) {
+  const apiKey = input.cursorApiKey || process.env.CURSOR_API_KEY;
+  if (!apiKey) {
+    throw new Error("CURSOR_API_KEY missing — set in Settings or env");
+  }
+
+  let cwd = input.cwd;
+  if (cwd.endsWith(".code-workspace")) {
+    cwd = agentCwdFromWorkspaceFile(cwd);
+  }
+
+  const machineName =
+    input.machineName?.trim() ||
+    process.env.CURSOR_MACHINE_NAME?.trim() ||
+    "task-manager";
+
+  const git = input.repoUrl
+    ? {
+        url: normalizeGitRemoteUrl(input.repoUrl),
+        ref: input.startingRef?.trim() || "main",
+      }
+    : await resolveGitRepo(cwd);
+
+  const { Agent } = await import("@cursor/sdk");
+  const agent = await Agent.create({
+    apiKey,
+    model: { id: input.model ?? "composer-2.5" },
+    name: `任务台 · ${input.taskId.slice(0, 8)}`,
+    cloud: {
+      env: { type: "machine", name: machineName },
+      repos: [{ url: git.url, startingRef: git.ref }],
+    },
+  });
+
+  const run = await agent.send(input.prompt);
+  const agentId = agent.agentId;
+  const agentsUrl = `https://cursor.com/agents/${encodeURIComponent(agentId)}`;
+
+  const record = await agentRunApi(
+    input.apiBaseUrl,
+    input.apiToken,
+    "POST",
+    "",
+    { taskId: input.taskId, agentId, runId: run.id },
+  );
+
+  const localRunId = record?.id ?? randomUUID();
+  const createdAt = new Date().toISOString();
+  upsertLocalAgentRun({
+    id: localRunId,
+    taskId: input.taskId,
+    agentId: agentId ?? null,
+    runId: run.id ?? null,
+    status: "running",
+    result: null,
+    transcript: null,
+    error: null,
+    createdAt,
+    finishedAt: null,
+  });
+
+  void (async () => {
+    try {
+      const result = await run.wait();
+      const status = result.status === "error" ? "error" : "done";
+      let transcript: string | null = null;
+      try {
+        if (run.supports?.("conversation")) {
+          const turns = await run.conversation();
+          transcript = JSON.stringify(turns).slice(0, TRANSCRIPT_LIMIT);
+        }
+      } catch {
+        /* ignore */
+      }
+      const resultText =
+        typeof result.result === "string"
+          ? result.result.slice(0, RESULT_LIMIT)
+          : null;
+      if (record?.id) {
+        await agentRunApi(input.apiBaseUrl, input.apiToken, "PATCH", `/${record.id}`, {
+          status,
+          result: resultText,
+          transcript,
+        });
+      }
+      upsertLocalAgentRun({
+        id: localRunId,
+        taskId: input.taskId,
+        agentId: agentId ?? null,
+        runId: run.id ?? null,
+        status,
+        result: resultText,
+        transcript,
+        error: null,
+        createdAt,
+        finishedAt: new Date().toISOString(),
+      });
+      await patchTask(input.apiBaseUrl, input.apiToken, input.taskId, {
+        status: status === "error" ? "todo" : "done",
+        cursorAgentId: agentId ?? undefined,
+      });
+    } catch (err) {
+      console.error("machine agent run failed", err);
+      const message = err instanceof Error ? err.message : "unknown";
+      if (record?.id) {
+        await agentRunApi(input.apiBaseUrl, input.apiToken, "PATCH", `/${record.id}`, {
+          status: "error",
+          error: message,
+        });
+      }
+      upsertLocalAgentRun({
+        id: localRunId,
+        taskId: input.taskId,
+        agentId: agentId ?? null,
+        runId: run.id ?? null,
+        status: "error",
+        result: null,
+        transcript: null,
+        error: message,
+        createdAt,
+        finishedAt: new Date().toISOString(),
+      });
+      await patchTask(input.apiBaseUrl, input.apiToken, input.taskId, {
+        status: "todo",
+      });
+    } finally {
+      try {
+        await agent[Symbol.asyncDispose]?.();
+      } catch {
+        /* ignore */
+      }
+    }
+  })();
+
+  await patchTask(input.apiBaseUrl, input.apiToken, input.taskId, {
+    status: "doing",
+    cursorAgentId: agentId,
+    repoPath: input.cwd,
+  });
+
+  return {
+    agentId,
+    runId: run.id,
+    mode: "machine" as const,
+    agentsUrl,
+    machineName,
+    repoUrl: git.url,
+    startingRef: git.ref,
+  };
 }
 
 function readBody(req: http.IncomingMessage): Promise<string> {
@@ -642,6 +836,53 @@ const server = http.createServer(async (req, res) => {  res.setHeader("Access-Co
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
       console.error(message);
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: message }));
+    }
+    return;
+  }
+
+  if (req.method === "POST" && req.url === "/agent/start-machine") {
+    try {
+      const raw = await readBody(req);
+      const parsed = StartSchema.safeParse(JSON.parse(raw || "{}"));
+      if (!parsed.success) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: parsed.error.flatten() }));
+        return;
+      }
+      const result = await startMachineAgent(parsed.data);
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(result));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      console.error("start-machine failed:", message);
+      const hint =
+        process.env.CURSOR_MACHINE_NAME?.trim() || "task-manager";
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          error: `${message}（请确认本机已运行：agent worker start --name ${hint}）`,
+        }),
+      );
+    }
+    return;
+  }
+
+  if (req.method === "GET" && req.url?.startsWith("/git/remote")) {
+    try {
+      const u = new URL(req.url, "http://127.0.0.1");
+      const cwd = u.searchParams.get("cwd");
+      if (!cwd) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "cwd required" }));
+        return;
+      }
+      const git = await resolveGitRepo(cwd);
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(git));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
       res.writeHead(500, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: message }));
     }

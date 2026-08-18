@@ -240,11 +240,22 @@ function findTaskLocal(sessionId, day) {
   if (sessionId) {
     const bySession = db.tasks.find((t) => t.cursorSessionId === sessionId);
     if (bySession) return bySession;
+    try {
+      const session = loadSession(sessionId);
+      if (session?.taskId) {
+        const byId = db.tasks.find((t) => t.id === session.taskId);
+        if (byId) return byId;
+      }
+    } catch {
+      /* ignore */
+    }
   }
   return (
     db.tasks.find(
       (t) => t.source === "cursor" && t.status === "doing" && t.day === day,
-    ) || null
+    ) ||
+    db.tasks.find((t) => t.status === "doing" && t.day === day) ||
+    null
   );
 }
 
@@ -275,6 +286,50 @@ async function findTaskRemote(apiBase, token, sessionId, day) {
     existing.tasks?.find((t) => t.source === "cursor" && t.status === "doing") ||
     null
   );
+}
+
+async function revertTaskToTodo({ storageMode, apiBase, token, sessionId, day }) {
+  let task = null;
+  const useRemote = storageMode === "remote" && apiBase && token;
+  if (useRemote) {
+    try {
+      task = await findTaskRemote(apiBase, token, sessionId, day);
+    } catch (e) {
+      log(`remote find failed on abort, try local: ${e.message}`);
+      task = findTaskLocal(sessionId, day);
+    }
+  } else {
+    task = findTaskLocal(sessionId, day);
+  }
+
+  if (!task) {
+    log("status=aborted, no matching task to revert");
+    return;
+  }
+  if (task.status !== "doing") {
+    log(`status=aborted, task ${task.id} already ${task.status}, skip revert`);
+    return;
+  }
+
+  const patch = { status: "todo" };
+  log(`status=aborted, revert task ${task.id} -> todo`);
+  if (useRemote) {
+    try {
+      await fetch(`${apiBase.replace(/\/$/, "")}/api/tasks/${task.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + token,
+        },
+        body: JSON.stringify(patch),
+      });
+    } catch (e) {
+      log(`remote revert failed, local: ${e.message}`);
+      patchTaskLocal(task.id, patch);
+    }
+  } else {
+    patchTaskLocal(task.id, patch);
+  }
 }
 
 async function main() {
@@ -321,7 +376,11 @@ async function main() {
   }
 
   if (status === "aborted") {
-    log("status=aborted, skip done/summarize");
+    try {
+      await revertTaskToTodo({ storageMode, apiBase, token, sessionId, day });
+    } catch (e) {
+      log(`abort revert error: ${e.message}`);
+    }
     process.stdout.write(JSON.stringify({}));
     return;
   }

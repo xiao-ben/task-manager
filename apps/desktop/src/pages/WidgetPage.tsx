@@ -13,8 +13,15 @@ import {
 import {
   listCursorWorkspaces,
   startAgent,
+  taskPrompt,
   type CursorWorkspace,
 } from "../lib/agent";
+import {
+  agentsUrlForId,
+  openExternalUrl,
+  openTaskInCursorChat,
+} from "../lib/opencursor";
+import { dispatchPlayLabel, loadSettings, type AgentDispatchMode } from "../lib/settings";
 import { subscribeLocalDbWatch } from "../lib/dbWatch";
 import { STATUS_LABEL } from "../lib/labels";
 import { displayName, pickDirectory } from "../lib/picker";
@@ -211,7 +218,7 @@ export function WidgetPage() {
     }
   }
 
-  async function launch(task: Task) {
+  async function launch(task: Task, modeOverride?: AgentDispatchMode) {
     try {
       setError(null);
       let repoPath = task.repoPath;
@@ -223,16 +230,37 @@ export function WidgetPage() {
         await openWorkspacePicker(task);
         return;
       }
+      const mode =
+        modeOverride ?? loadSettings().agentDispatchMode ?? "cursor";
+      if (mode === "cursor") {
+        await openTaskInCursorChat({
+          cwd: repoPath,
+          title: task.title,
+          notes: task.notes,
+          taskId: task.id,
+        });
+        await updateTaskOptimistic(task.id, {
+          status: "doing",
+          repoPath,
+        });
+        refreshLists();
+        return;
+      }
       const result = await startAgent({
         taskId: task.id,
-        prompt: `请完成以下任务：${task.title}${task.notes ? `\n\n备注：${task.notes}` : ""}`,
+        prompt: taskPrompt(task),
         cwd: repoPath,
+        mode,
       });
       await updateTaskOptimistic(task.id, {
         status: "doing",
         repoPath,
         cursorAgentId: result.agentId,
       });
+      if (mode === "machine") {
+        const url = result.agentsUrl ?? agentsUrlForId(result.agentId);
+        void openExternalUrl(url).catch(() => {});
+      }
       refreshLists();
     } catch (err) {
       setError(err instanceof Error ? err.message : "启动失败");
@@ -295,8 +323,8 @@ export function WidgetPage() {
           <button
             className="btn icon bordered"
             type="button"
-            title="派发 Agent"
-            aria-label="在 Cursor 启动"
+            title={dispatchPlayLabel()}
+            aria-label={dispatchPlayLabel()}
             onClick={() => void launch(task)}
           >
             <IconPlay size={12} />
