@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>任务台 · 页面草图</title>
+    <style>
+      :root {
+        --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue",
+          "PingFang SC", "Hiragino Sans GB", sans-serif;
+        --serif: "Songti SC", "STSong", "Noto Serif SC", Georgia, serif;
+        --bg: #f4f1ea;
+        --bg-deep: #edeae1;
+        --panel: #fffdf8;
+        --label: #211d17;
+        --secondary-label: #7a7264;
+        --tertiary-label: #b0a894;
+        --separator: rgba(28, 24, 18, 0.08);
+        --fill: rgba(28, 24, 18, 0.055);
+        --fill-secondary: rgba(28, 24, 18, 0.035);
+        --accent: #d6401f;
+        --accent-soft: rgba(214, 64, 31, 0.1);
+        --indigo: #3556c8;
+        --indigo-soft: rgba(53, 86, 200, 0.1);
+        --success: #2e7d46;
+        --success-soft: rgba(46, 125, 70, 0.12);
+        --warning: #a86412;
+        --warning-soft: rgba(168, 100, 18, 0.12);
+        --shadow-card: 0 1px 0 rgba(28, 24, 18, 0.03), 0 10px 28px rgba(28, 24, 18, 0.06);
+        --radius-md: 12px;
+        --sidebar-width: 216px;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; font-family: var(--font); color: var(--label); background: #d8d2c6; }
+      button, input, textarea { font: inherit; color: inherit; }
+      button { cursor: pointer; }
+      .stage { min-height: 100%; padding: 28px 24px 40px; }
+      .caption { max-width: 1280px; margin: 0 auto 14px; color: #5c564c; font-size: 13px; display: flex; justify-content: space-between; gap: 12px; }
+      .caption strong { color: var(--label); }
+      .window {
+        max-width: 1280px; margin: 0 auto; height: calc(100vh - 92px); min-height: 720px;
+        border-radius: 16px; overflow: hidden; background: var(--bg);
+        box-shadow: 0 30px 80px rgba(28, 24, 18, 0.18);
+        display: grid; grid-template-rows: 38px 1fr;
+      }
+      .titlebar {
+        background: #ebe6db; display: flex; align-items: center; gap: 8px; padding: 0 14px;
+        border-bottom: 1px solid var(--separator); color: var(--secondary-label); font-size: 12px;
+      }
+      .dots { display: flex; gap: 6px; }
+      .dots i { width: 10px; height: 10px; border-radius: 50%; display: block; }
+      .dots .r { background: #ff5f57; } .dots .y { background: #febc2e; } .dots .g { background: #28c840; }
+      .shell { display: grid; grid-template-columns: var(--sidebar-width) 1fr; min-height: 0; }
+      .sidebar {
+        padding: 20px 12px 14px; display: flex; flex-direction: column; gap: 18px;
+        background: linear-gradient(180deg, rgba(255,253,248,.7), rgba(244,241,234,.4));
+        border-right: 1px solid var(--separator);
+      }
+      .brand-block { display: flex; align-items: center; gap: 10px; padding: 0 8px; }
+      .brand-mark {
+        width: 30px; height: 30px; border-radius: 8px; background: var(--accent); color: #fdf3ee;
+        display: grid; place-items: center; font-family: var(--serif); font-weight: 700; transform: rotate(-2deg);
+      }
+      .brand { font-weight: 700; font-size: 15px; }
+      .brand-sub { font-size: 11px; color: var(--secondary-label); }
+      .nav { display: flex; flex-direction: column; gap: 2px; }
+      .nav button {
+        display: flex; align-items: center; justify-content: space-between; gap: 8px;
+        min-height: 34px; padding: 0 12px; border: 0; border-radius: 9px;
+        background: transparent; color: var(--secondary-label); font-weight: 550; font-size: 13.5px;
+      }
+      .nav button:hover { background: var(--fill-secondary); color: var(--label); }
+      .nav button.active { background: var(--accent-soft); color: var(--accent); }
+      .nav .left { display: flex; align-items: center; gap: 8px; }
+      .badge { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 11px; display: grid; place-items: center; }
+      .nav-gap { height: 10px; }
+      .muted { color: var(--tertiary-label); font-size: 11px; padding: 6px 12px 2px; }
+      .sidebar-footer { margin-top: auto; padding-top: 12px; border-top: 1px solid var(--separator); }
+      .pill { display: inline-flex; padding: 3px 8px; border-radius: 999px; background: var(--fill); color: var(--secondary-label); font-size: 11px; }
+      .page { display: none; min-width: 0; min-height: 0; overflow: auto; padding: 20px 24px 28px; }
+      .page.on { display: block; }
+      .page.split { display: none; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; }
+      .page.split.on { display: grid; }
+      .page.cols { display: none; grid-template-columns: 220px minmax(0, 1fr) 280px; gap: 16px; }
+      .page.cols.on { display: grid; }
+      h1 { margin: 0; font-family: var(--serif); font-size: 28px; font-weight: 600; }
+      .sub { color: var(--secondary-label); font-size: 13px; margin-top: 4px; }
+      .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+      .seg { display: flex; background: var(--fill); border-radius: 9px; padding: 3px; }
+      .seg span { padding: 4px 10px; border-radius: 7px; font-size: 12px; color: var(--secondary-label); }
+      .seg .on { background: var(--panel); color: var(--label); box-shadow: var(--shadow-card); }
+      .card { background: var(--panel); border: 1px solid var(--separator); border-radius: var(--radius-md); box-shadow: var(--shadow-card); }
+      .task { display: flex; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--separator); cursor: pointer; }
+      .task:last-child { border-bottom: 0; }
+      .task:hover, .task.sel { background: rgba(214,64,31,.04); }
+      .check { width: 16px; height: 16px; border: 1.5px solid #c8c0b2; border-radius: 5px; margin-top: 3px; flex: none; }
+      .check.doing { border-color: var(--indigo); background: var(--indigo-soft); }
+      .check.done { border-color: var(--success); background: var(--success); }
+      .t-title { font-size: 14px; font-weight: 560; }
+      .t-meta { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 6px; font-size: 11px; color: var(--secondary-label); }
+      .chip { padding: 1px 7px; border-radius: 999px; background: var(--fill); }
+      .chip.indigo { background: var(--indigo-soft); color: var(--indigo); }
+      .chip.warn { background: var(--warning-soft); color: var(--warning); }
+      .chip.ok { background: var(--success-soft); color: var(--success); }
+      .section { font-size: 12px; color: var(--secondary-label); margin: 16px 2px 8px; }
+      .inspector { padding: 16px; }
+      .inspector h2 { margin: 0 0 6px; font-size: 16px; }
+      .ask { background: #fbf6ee; border-radius: 10px; padding: 10px 12px; margin: 10px 0; font-size: 13px; line-height: 1.55; }
+      .ask b { display: block; color: var(--warning); font-size: 11px; margin-bottom: 6px; }
+      .btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+      .btn { border: 0; border-radius: 9px; min-height: 32px; padding: 0 11px; background: var(--fill); font-size: 12.5px; }
+      .btn.primary { background: var(--accent); color: #fff; }
+      .btn.ghost { background: transparent; border: 1px solid var(--separator); }
+      .capture { width: 100%; border: 1px solid var(--separator); background: var(--panel); border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow-card); margin-bottom: 14px; }
+      .inbox-item { padding: 14px 16px; margin-bottom: 10px; }
+      .inbox-item p { margin: 6px 0 10px; font-size: 15px; }
+      .list-item { padding: 10px 12px; border-radius: 9px; cursor: pointer; color: var(--secondary-label); font-size: 13px; }
+      .list-item.on, .list-item:hover { background: var(--accent-soft); color: var(--accent); }
+      article { padding: 8px 6px 20px; }
+      article h1 { font-size: 32px; }
+      article h3 { margin: 18px 0 6px; font-size: 13px; color: var(--secondary-label); font-weight: 600; }
+      article p, article li { font-size: 14px; line-height: 1.7; }
+      .conv { display: flex; flex-direction: column; gap: 10px; padding: 8px 4px; }
+      .bubble { max-width: 92%; padding: 10px 12px; border-radius: 12px; font-size: 13.5px; line-height: 1.6; }
+      .bubble.me { align-self: flex-end; background: var(--accent-soft); }
+      .bubble.ai { align-self: flex-start; background: var(--panel); border: 1px solid var(--separator); }
+      .extract li { margin: 6px 0; font-size: 13px; }
+      .note { font-size: 12px; color: var(--secondary-label); line-height: 1.55; }
+      .widget-wrap { display: flex; align-items: flex-start; gap: 28px; }
+      .widget {
+        width: 320px; border-radius: 16px; background: rgba(255,253,248,.92); border: 1px solid var(--separator);
+        box-shadow: var(--shadow-card); padding: 12px; backdrop-filter: blur(12px);
+      }
+      .widget h1 { font-size: 18px; }
+      .empty-hint { color: var(--tertiary-label); font-size: 13px; padding: 24px 8px; }
+    </style>
+  </head>
+  <body>
+    <div class="stage">
+      <div class="caption">
+        <div><strong>页面草图</strong> · 可点击左侧导航切换。这是结构稿，不是最终视觉。</div>
+        <div>今日 → Inbox → 库 / 透镜 / 对话 是新增长的三层</div>
+      </div>
+      <div class="window">
+        <div class="titlebar">
+          <div class="dots"><i class="r"></i><i class="y"></i><i class="g"></i></div>
+          <span>任务台</span>
+        </div>
+        <div class="shell">
+          <aside class="sidebar">
+            <div class="brand-block">
+              <div class="brand-mark">今</div>
+              <div>
+                <div class="brand">任务台</div>
+                <div class="brand-sub">个人工作台</div>
+              </div>
+            </div>
+            <nav class="nav">
+              <button class="active" data-page="today"><span class="left">今日</span></button>
+              <button data-page="inbox"><span class="left">Inbox</span><span class="badge">4</span></button>
+              <button data-page="library"><span class="left">库</span></button>
+              <button data-page="lens"><span class="left">透镜</span></button>
+              <button data-page="talk"><span class="left">对话</span></button>
+              <div class="nav-gap"></div>
+              <div class="muted">回顾</div>
+              <button data-page="week"><span class="left">本周</span></button>
+              <button data-page="month"><span class="left">本月</span></button>
+              <div class="nav-gap"></div>
+              <button data-page="widget"><span class="left">小窗</span></button>
+            </nav>
+            <div class="sidebar-footer">
+              <span class="pill">仅本地</span>
+            </div>
+          </aside>
+
+          <section id="today" class="page split on">
+            <div>
+              <div class="row">
+                <div>
+                  <h1>8月22日 · 周六</h1>
+                  <div class="sub">3 条待办 · 1 条待判断</div>
+                </div>
+                <div class="seg"><span class="on">列表</span><span>看板</span></div>
+              </div>
+              <div class="section">过期</div>
+              <div class="card">
+                <div class="task">
+                  <div class="check"></div>
+                  <div>
+                    <div class="t-title">把 sidecar 健康检查写进设置页</div>
+                    <div class="t-meta"><span>8月20日</span><span class="chip">拉回今天</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="section">今天</div>
+              <div class="card">
+                <div class="task">
+                  <div class="check doing"></div>
+                  <div>
+                    <div class="t-title">写工作台页面草图</div>
+                    <div class="t-meta"><span class="chip indigo">Cursor</span><span>进行中</span></div>
+                  </div>
+                </div>
+                <div class="task sel">
+                  <div class="check"></div>
+                  <div>
+                    <div class="t-title">复盘黄金仓位要不要加</div>
+                    <div class="t-meta"><span class="chip warn">待判断</span><span class="chip">透镜 · 黄金</span></div>
+                  </div>
+                </div>
+                <div class="task">
+                  <div class="check"></div>
+                  <div>
+                    <div class="t-title">把 Claude 里那段能力圈对话存进库</div>
+                    <div class="t-meta"><span class="chip indigo">对话</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <aside class="card inspector">
+              <div class="chip warn">待判断</div>
+              <h2>复盘黄金仓位要不要加</h2>
+              <p class="note">来自 Inbox · 链到透镜「黄金」「机会成本」</p>
+              <div class="ask">
+                <b>用这两条透镜问你</b>
+                1. 我是在对冲信用，还是在追涨？<br />
+                2. 实际利率现在在不在说话？<br />
+                3. 这笔钱不买黄金，机会成本是什么？
+              </div>
+              <div class="btns">
+                <button class="btn primary">记下判断</button>
+                <button class="btn">派给 Cursor</button>
+                <button class="btn ghost">打开相关对话</button>
+              </div>
+            </aside>
+          </section>
+
+          <section id="inbox" class="page">
+            <div class="row">
+              <div>
+                <h1>Inbox</h1>
+                <div class="sub">先扔进来，再决定今天做不做</div>
+              </div>
+            </div>
+            <input class="capture" placeholder="一句话，先不承诺…  ⌘N" />
+            <div class="card inbox-item">
+              <div class="t-meta"><span class="chip">灵感</span><span>今天 16:02</span></div>
+              <p>要不要加黄金仓位</p>
+              <div class="btns">
+                <button class="btn primary">今日</button>
+                <button class="btn">入库</button>
+                <button class="btn">做透镜</button>
+                <button class="btn ghost">丢掉</button>
+              </div>
+            </div>
+            <div class="card inbox-item">
+              <div class="t-meta"><span class="chip indigo">飞书</span><span>今天 11:20</span></div>
+              <p>帮看一下 PR 评论</p>
+              <div class="btns"><button class="btn primary">今日</button><button class="btn ghost">丢掉</button></div>
+            </div>
+            <div class="card inbox-item">
+              <div class="t-meta"><span class="chip indigo">Claude · 对话</span></div>
+              <p>能力圈之外的事，用流程补，不靠自信。</p>
+              <div class="btns"><button class="btn">入库</button><button class="btn">做透镜</button></div>
+            </div>
+            <div class="card inbox-item">
+              <div class="t-meta"><span class="chip">灵感</span></div>
+              <p>晚上收工时自动出日总结草稿</p>
+              <div class="btns"><button class="btn">今日</button><button class="btn">入库</button></div>
+            </div>
+          </section>
+
+          <section id="library" class="page cols">
+            <div class="card" style="padding:10px">
+              <div class="muted">类型</div>
+              <div class="list-item on">全部</div>
+              <div class="list-item">笔记</div>
+              <div class="list-item">周期总结</div>
+              <div class="list-item">判断记录</div>
+              <div class="list-item">对话摘录</div>
+            </div>
+            <div>
+              <div class="row">
+                <div>
+                  <h1>库</h1>
+                  <div class="sub">消化过的东西才进这里</div>
+                </div>
+                <input class="capture" style="max-width:240px;margin:0" placeholder="搜索库…" />
+              </div>
+              <div class="card">
+                <div class="task">
+                  <div>
+                    <div class="t-title">2026-08 对黄金的看法</div>
+                    <div class="t-meta"><span class="chip">判断</span><span class="chip">黄金</span><span>链到 1 个任务 · 1 段对话</span></div>
+                  </div>
+                </div>
+                <div class="task">
+                  <div>
+                    <div class="t-title">日总结 · 8月21日</div>
+                    <div class="t-meta"><span class="chip">周期</span><span>完成 4/6</span></div>
+                  </div>
+                </div>
+                <div class="task">
+                  <div>
+                    <div class="t-title">能力圈：流程补判断，不靠自信</div>
+                    <div class="t-meta"><span class="chip indigo">摘录</span><span>来自 Claude</span></div>
+                  </div>
+                </div>
+                <div class="task">
+                  <div>
+                    <div class="t-title">任务台不要做成 Agent IDE</div>
+                    <div class="t-meta"><span class="chip">笔记</span><span>产品原则</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <aside class="card inspector">
+              <h2>2026-08 对黄金的看法</h2>
+              <p class="note">先当信用对冲看，不加在「觉得要涨」上。实际利率不配合就只做观察仓。</p>
+              <div class="section">挂着</div>
+              <div class="t-meta">
+                <span class="chip">透镜 · 黄金</span>
+                <span class="chip">任务 · 复盘仓位</span>
+                <span class="chip indigo">对话 · Claude</span>
+              </div>
+            </aside>
+          </section>
+
+          <section id="lens" class="page cols">
+            <div class="card" style="padding:10px">
+              <div class="muted">你的透镜 · 7</div>
+              <div class="list-item">能力圈</div>
+              <div class="list-item">逆向</div>
+              <div class="list-item">机会成本</div>
+              <div class="list-item">复利</div>
+              <div class="list-item">安全边际</div>
+              <div class="list-item on">黄金</div>
+              <div class="list-item">可逆决策</div>
+            </div>
+            <article>
+              <div class="chip">货币信用 · 宏观配置</div>
+              <h1>黄金</h1>
+              <h3>是什么</h3>
+              <p>黄金不产现金流，定价更接近货币信用、实际利率和避险需求。</p>
+              <h3>适用</h3>
+              <p>宏观配置、通胀 / 信用对冲、危机定价。</p>
+              <h3>不适用</h3>
+              <p>选成长股、判断一家公司好不好、短期择时。</p>
+              <h3>问自己</h3>
+              <p>我是在买信用对冲，还是在追涨？实际利率在不在说话？机会成本是什么？</p>
+              <p class="note">用过 3 次 · 上次：加仓复盘</p>
+            </article>
+            <aside class="card inspector">
+              <div class="section" style="margin-top:0">挂在这副透镜上</div>
+              <div class="list-item on">2026-08 对黄金的看法</div>
+              <div class="list-item">任务 · 复盘黄金仓位</div>
+              <div class="list-item">对话 · 实际利率与金价</div>
+              <div class="btns"><button class="btn primary">用它看当前任务</button></div>
+            </aside>
+          </section>
+
+          <section id="talk" class="page cols">
+            <div class="card" style="padding:10px">
+              <div class="muted">来源</div>
+              <div class="list-item">Cursor · 产品方向</div>
+              <div class="list-item on">Claude · 黄金底层逻辑</div>
+              <div class="list-item">ChatGPT · 周报结构</div>
+              <div class="list-item">Cursor · 修复同步</div>
+            </div>
+            <div class="conv">
+              <div class="bubble me">黄金的底层逻辑是什么？我拿它当判断框架，不是要预测价格。</div>
+              <div class="bubble ai">先把它看成「不产现金流的货币信用影子」。能解释它的，通常是实际利率、美元信用和避险需求，而不是公司质地。用来判断「我在对冲什么」，不要用来判断「明天涨不涨」。</div>
+              <div class="bubble me">那和机会成本怎么一起用？</div>
+              <div class="bubble ai">问第三句：这笔钱不买黄金会去哪，预期差够不够。两问都过，再动仓。</div>
+            </div>
+            <aside class="card inspector extract">
+              <h2>从这段抽出</h2>
+              <div class="section">结论</div>
+              <ul>
+                <li>黄金是信用对冲，不是成长标的</li>
+                <li>先看实际利率，再看要不要动</li>
+                <li>和机会成本一起用</li>
+              </ul>
+              <div class="section">待办</div>
+              <ul>
+                <li>复盘黄金仓位</li>
+                <li>把原则写成透镜</li>
+              </ul>
+              <div class="section">灵感</div>
+              <ul><li>晚间收工加一条「今天用了哪条透镜」</li></ul>
+              <div class="btns">
+                <button class="btn primary">写入库</button>
+                <button class="btn">生成待办</button>
+                <button class="btn ghost">打开原会话</button>
+              </div>
+            </aside>
+          </section>
+
+          <section id="week" class="page">
+            <h1>本周</h1>
+            <div class="sub">回顾还在，但多一列：本周判断 / 未闭环</div>
+            <div class="card" style="padding:16px;margin-top:16px">
+              <p class="note">沿用现有周视图。底部总结不再只是任务清单，会带上「用过的透镜」和 Inbox 里还没处理的事。</p>
+              <p>完成 11/16 · 判断 2 条 · Inbox 清了 6 / 剩 4</p>
+            </div>
+          </section>
+
+          <section id="month" class="page">
+            <h1>本月</h1>
+            <div class="sub">月度是主题，不是更大的待办列表</div>
+            <div class="card" style="padding:16px;margin-top:16px">
+              <p>8 月主题：个人工作台怎么长 · 黄金仓位原则</p>
+              <p class="note">从日/周总结里抽主题，链到库和透镜。不做第四套看板。</p>
+            </div>
+          </section>
+
+          <section id="widget" class="page">
+            <h1>小窗</h1>
+            <div class="sub">继续盯今天，但角标改成「有人等你」</div>
+            <div class="widget-wrap" style="margin-top:18px">
+              <div class="widget">
+                <div class="row"><h1>今天</h1><span class="chip warn">1 待判断</span></div>
+                <div class="task"><div class="check doing"></div><div class="t-title">写页面草图</div></div>
+                <div class="task sel"><div class="check"></div><div class="t-title">复盘黄金仓位</div></div>
+                <div class="task"><div class="check"></div><div class="t-title">存能力圈对话</div></div>
+                <input class="capture" placeholder="丢进 Inbox…" style="margin:10px 0 0" />
+              </div>
+              <p class="note" style="max-width:360px">小窗只做三件事：看今日、勾完成、一句话进 Inbox。判断和对话回主窗口。</p>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+    <script>
+      const buttons = document.querySelectorAll(".nav button[data-page]");
+      const pages = document.querySelectorAll(".page");
+      buttons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          buttons.forEach((b) => b.classList.remove("active"));
+          btn.classList.add("active");
+          pages.forEach((p) => p.classList.remove("on"));
+          document.getElementById(btn.dataset.page).classList.add("on");
+        });
+      });
+    </script>
+  </body>
+</html>
