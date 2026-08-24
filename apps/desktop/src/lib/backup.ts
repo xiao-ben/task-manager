@@ -1,4 +1,4 @@
-import { readLocalDb, writeLocalDb, type LocalDb } from "./localDb";
+import { normalizeLocalDb, readLocalDb, writeLocalDb, type LocalDb } from "./localDb";
 
 export const BACKUP_FORMAT = "task-manager-backup" as const;
 export const BACKUP_VERSION = 1 as const;
@@ -15,21 +15,7 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 }
 
 function normalizeDb(raw: unknown): LocalDb {
-  const o = isRecord(raw) ? raw : {};
-  return {
-    tasks: Array.isArray(o.tasks) ? (o.tasks as LocalDb["tasks"]) : [],
-    repos: Array.isArray(o.repos) ? (o.repos as LocalDb["repos"]) : [],
-    summaries: Array.isArray(o.summaries)
-      ? (o.summaries as LocalDb["summaries"])
-      : [],
-    agentRuns: Array.isArray(o.agentRuns)
-      ? (o.agentRuns as LocalDb["agentRuns"])
-      : [],
-    deletedTaskIds: Array.isArray(o.deletedTaskIds)
-      ? (o.deletedTaskIds as string[])
-      : [],
-    revision: typeof o.revision === "number" ? o.revision : 1,
-  };
+  return normalizeLocalDb(raw);
 }
 
 /** Accept wrapped backup or raw LocalDb JSON. */
@@ -106,6 +92,23 @@ export function mergeLocalDb(current: LocalDb, incoming: LocalDb): LocalDb {
       current.agentRuns ?? [],
       incoming.agentRuns ?? [],
     ),
+    inboxItems: mergeById(current.inboxItems ?? [], incoming.inboxItems ?? []),
+    libraryEntries: mergeById(
+      current.libraryEntries ?? [],
+      incoming.libraryEntries ?? [],
+    ),
+    lenses: mergeById(current.lenses ?? [], incoming.lenses ?? []),
+    conversations: mergeById(
+      current.conversations ?? [],
+      incoming.conversations ?? [],
+    ),
+    taskLenses: [
+      ...new Map(
+        [...(current.taskLenses ?? []), ...(incoming.taskLenses ?? [])].map(
+          (l) => [`${l.taskId}:${l.lensId}`, l] as const,
+        ),
+      ).values(),
+    ],
     deletedTaskIds: [...deleted],
     revision: Math.max(current.revision || 1, incoming.revision || 1),
   };

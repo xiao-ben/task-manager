@@ -230,3 +230,30 @@ export function IconBoard(props: IconProps) {
     </Svg>
   );
 }
+
+export function IconBook(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+    </Svg>
+  );
+}
+
+export function IconLens(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="11" cy="11" r="6" />
+      <line x1="21" y1="21" x2="15.5" y2="15.5" />
+      <circle cx="11" cy="11" r="2" />
+    </Svg>
+  );
+}
+
+export function IconChat(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+    </Svg>
+  );
+}

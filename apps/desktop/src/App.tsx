@@ -1,6 +1,10 @@
 import { NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import {
+  IconBook,
+  IconChat,
+  IconInbox,
+  IconLens,
   IconMonth,
   IconSearch,
   IconSettings,
@@ -16,14 +20,20 @@ import {
 import { SearchPalette } from "./components/SearchPalette";
 import { WidgetPage } from "./pages/WidgetPage";
 import { DayPage } from "./pages/DayPage";
+import { InboxPage } from "./pages/InboxPage";
+import { LibraryPage } from "./pages/LibraryPage";
+import { LensesPage } from "./pages/LensesPage";
+import { ConversationsPage } from "./pages/ConversationsPage";
 import { PeriodPage } from "./pages/PeriodPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import {
+  getCachedDb,
   getSyncStatus,
   subscribeSync,
   syncNow,
   initLocalStore,
 } from "./lib/sync";
+import { openInbox } from "./lib/workbench";
 import { loadSettings } from "./lib/settings";
 
 async function openDesktopWidget() {
@@ -37,9 +47,11 @@ async function openDesktopWidget() {
 
 function Shell({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
+  const loc = useLocation();
   const [sync, setSync] = useState(getSyncStatus());
   const [searchOpen, setSearchOpen] = useState(false);
   const [onboardOpen, setOnboardOpen] = useState(() => shouldShowOnboarding());
+  const [inboxCount, setInboxCount] = useState(() => openInbox(getCachedDb()).length);
 
   useEffect(() => {
     void initLocalStore();
@@ -54,7 +66,10 @@ function Shell({ children }: { children: React.ReactNode }) {
       const show = await shouldShowOnboardingAsync();
       setOnboardOpen(show);
     })();
-    return subscribeSync(() => setSync(getSyncStatus()));
+    return subscribeSync(() => {
+      setSync(getSyncStatus());
+      setInboxCount(openInbox(getCachedDb()).length);
+    });
   }, []);
 
   useEffect(() => {
@@ -82,10 +97,10 @@ function Shell({ children }: { children: React.ReactNode }) {
       }
       if (meta && e.key.toLowerCase() === "n") {
         e.preventDefault();
-        navigate("/");
+        navigate("/inbox");
         window.setTimeout(() => {
           const el = document.querySelector<HTMLInputElement>(
-            'input[aria-label="新待办"]',
+            'input[aria-label="Inbox 捕捉"]',
           );
           el?.focus();
         }, 50);
@@ -114,6 +129,31 @@ function Shell({ children }: { children: React.ReactNode }) {
               <IconToday size={16} />
             </span>
             <span className="nav-label">今日</span>
+          </NavLink>
+          <NavLink to="/inbox">
+            <span className="nav-icon">
+              <IconInbox size={16} />
+            </span>
+            <span className="nav-label">Inbox</span>
+            {inboxCount > 0 && <span className="nav-badge">{inboxCount}</span>}
+          </NavLink>
+          <NavLink to="/library">
+            <span className="nav-icon">
+              <IconBook size={16} />
+            </span>
+            <span className="nav-label">库</span>
+          </NavLink>
+          <NavLink to="/lenses">
+            <span className="nav-icon">
+              <IconLens size={16} />
+            </span>
+            <span className="nav-label">透镜</span>
+          </NavLink>
+          <NavLink to="/talk">
+            <span className="nav-icon">
+              <IconChat size={16} />
+            </span>
+            <span className="nav-label">对话</span>
           </NavLink>
           <NavLink to="/week">
             <span className="nav-icon">
@@ -176,7 +216,9 @@ function Shell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="content">
-        <div className="content-inner rise">{children}</div>
+        <div className={`content-inner rise ${loc.pathname === "/" || ["/inbox", "/library", "/lenses", "/talk"].includes(loc.pathname) ? "wide" : ""}`}>
+          {children}
+        </div>
       </div>
 
       <SearchPalette
@@ -207,6 +249,10 @@ export default function App() {
     <Shell>
       <Routes>
         <Route path="/" element={<DayPage />} />
+        <Route path="/inbox" element={<InboxPage />} />
+        <Route path="/library" element={<LibraryPage />} />
+        <Route path="/lenses" element={<LensesPage />} />
+        <Route path="/talk" element={<ConversationsPage />} />
         <Route path="/week" element={<PeriodPage kind="week" />} />
         <Route path="/month" element={<PeriodPage kind="month" />} />
         <Route path="/settings" element={<SettingsPage />} />

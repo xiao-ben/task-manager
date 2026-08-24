@@ -211,6 +211,7 @@ type LocalDbShape = {
   agentRuns: Array<Record<string, unknown>>;
   deletedTaskIds: string[];
   revision: number;
+  [key: string]: unknown;
 };
 
 function readLocalDbFile(): LocalDbShape {
@@ -227,6 +228,8 @@ function readLocalDbFile(): LocalDbShape {
     if (!fs.existsSync(p)) return empty;
     const raw = JSON.parse(fs.readFileSync(p, "utf8")) as Partial<LocalDbShape>;
     return {
+      ...empty,
+      ...raw,
       tasks: Array.isArray(raw.tasks) ? raw.tasks : [],
       repos: Array.isArray(raw.repos) ? raw.repos : [],
       summaries: Array.isArray(raw.summaries) ? raw.summaries : [],

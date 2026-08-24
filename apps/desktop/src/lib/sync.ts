@@ -11,7 +11,7 @@ import type {
 } from "@task-manager/shared";
 import { api } from "./api";
 import { bumpLocalDbWatchBaseline } from "./dbWatch";
-import { readLocalDb, writeLocalDb, type LocalDb } from "./localDb";
+import { emptyLocalDb, normalizeLocalDb, readLocalDb, writeLocalDb, type LocalDb } from "./localDb";
 import { loadSettings } from "./settings";
 
 type QueueItem = {
@@ -64,6 +64,8 @@ function syncEnabled(): boolean {
 async function ensureMemory(): Promise<LocalDb> {
   if (!memory) {
     memory = await readLocalDb();
+  } else {
+    memory = normalizeLocalDb(memory);
   }
   return memory;
 }
@@ -76,10 +78,21 @@ async function reloadFromDisk(): Promise<LocalDb> {
 
 async function persist(db: LocalDb): Promise<LocalDb> {
   // writeLocalDb returns the revision-bumped snapshot — avoid a second disk read
-  memory = await writeLocalDb(db);
+  memory = await writeLocalDb(normalizeLocalDb(db));
   void bumpLocalDbWatchBaseline();
   emit();
   return memory;
+}
+
+export function getCachedDb(): LocalDb | null {
+  return memory;
+}
+
+export async function mutateLocalDb(
+  mutator: (db: LocalDb) => LocalDb,
+): Promise<LocalDb> {
+  const db = await ensureMemory();
+  return persist(mutator(db));
 }
 
 function filterTasks(
@@ -144,14 +157,7 @@ export function getCachedTasks(day?: string): Task[] {
 
 export function upsertCachedTask(task: Task) {
   if (!memory) {
-    memory = {
-      tasks: [task],
-      repos: [],
-      summaries: [],
-      agentRuns: [],
-      deletedTaskIds: [],
-      revision: 1,
-    };
+    memory = { ...emptyLocalDb(), tasks: [task] };
   } else {
     memory = {
       ...memory,

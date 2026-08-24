@@ -1,4 +1,14 @@
-import type { AgentRun, Repo, Summary, Task } from "@task-manager/shared";
+import type {
+  AgentRun,
+  Conversation,
+  InboxItem,
+  Lens,
+  LibraryEntry,
+  Repo,
+  Summary,
+  Task,
+  TaskLensLink,
+} from "@task-manager/shared";
 
 export type LocalDb = {
   tasks: Task[];
@@ -6,20 +16,32 @@ export type LocalDb = {
   summaries: Summary[];
   agentRuns: AgentRun[];
   deletedTaskIds: string[];
+  inboxItems: InboxItem[];
+  libraryEntries: LibraryEntry[];
+  lenses: Lens[];
+  conversations: Conversation[];
+  taskLenses: TaskLensLink[];
   revision: number;
 };
 
 const BROWSER_KEY = "task-manager.local.db";
 const LEGACY_CACHE_KEY = "task-manager.cache.tasks";
 
-const EMPTY_DB: LocalDb = {
-  tasks: [],
-  repos: [],
-  summaries: [],
-  agentRuns: [],
-  deletedTaskIds: [],
-  revision: 1,
-};
+export function emptyLocalDb(): LocalDb {
+  return {
+    tasks: [],
+    repos: [],
+    summaries: [],
+    agentRuns: [],
+    deletedTaskIds: [],
+    inboxItems: [],
+    libraryEntries: [],
+    lenses: [],
+    conversations: [],
+    taskLenses: [],
+    revision: 1,
+  };
+}
 
 type InvokeFn = (
   cmd: string,
@@ -39,16 +61,23 @@ async function getInvoke(): Promise<InvokeFn> {
   return invokeFn;
 }
 
-function normalize(raw: unknown): LocalDb {
+function asArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
+export function normalizeLocalDb(raw: unknown): LocalDb {
   const o = (raw && typeof raw === "object" ? raw : {}) as Partial<LocalDb>;
   return {
-    tasks: Array.isArray(o.tasks) ? (o.tasks as Task[]) : [],
-    repos: Array.isArray(o.repos) ? (o.repos as Repo[]) : [],
-    summaries: Array.isArray(o.summaries) ? (o.summaries as Summary[]) : [],
-    agentRuns: Array.isArray(o.agentRuns) ? (o.agentRuns as AgentRun[]) : [],
-    deletedTaskIds: Array.isArray(o.deletedTaskIds)
-      ? (o.deletedTaskIds as string[])
-      : [],
+    tasks: asArray(o.tasks),
+    repos: asArray(o.repos),
+    summaries: asArray(o.summaries),
+    agentRuns: asArray(o.agentRuns),
+    deletedTaskIds: asArray(o.deletedTaskIds),
+    inboxItems: asArray(o.inboxItems),
+    libraryEntries: asArray(o.libraryEntries),
+    lenses: asArray(o.lenses),
+    conversations: asArray(o.conversations),
+    taskLenses: asArray(o.taskLenses),
     revision: typeof o.revision === "number" ? o.revision : 1,
   };
 }
@@ -72,19 +101,19 @@ export async function readLocalDb(): Promise<LocalDb> {
     try {
       const invoke = await getInvoke();
       const text = (await invoke("read_local_db")) as string;
-      let db = normalize(JSON.parse(text || "{}"));
+      let db = normalizeLocalDb(JSON.parse(text || "{}"));
       const migrated = migrateLegacyCache(db);
       if (migrated.tasks.length > db.tasks.length) {
         return writeLocalDb(migrated);
       }
       return db;
     } catch {
-      // fall through to browser key
+      /* fall through to browser key */
     }
   }
   try {
     const raw = localStorage.getItem(BROWSER_KEY);
-    let db = normalize(raw ? JSON.parse(raw) : {});
+    let db = normalizeLocalDb(raw ? JSON.parse(raw) : {});
     const migrated = migrateLegacyCache(db);
     if (migrated.tasks.length > db.tasks.length) {
       localStorage.setItem(BROWSER_KEY, JSON.stringify(migrated));
@@ -92,13 +121,13 @@ export async function readLocalDb(): Promise<LocalDb> {
     }
     return db;
   } catch {
-    return { ...EMPTY_DB };
+    return emptyLocalDb();
   }
 }
 
 /** Persist and return the written DB (with bumped revision). */
 export async function writeLocalDb(db: LocalDb): Promise<LocalDb> {
-  const next: LocalDb = { ...db, revision: (db.revision || 0) + 1 };
+  const next: LocalDb = { ...normalizeLocalDb(db), revision: (db.revision || 0) + 1 };
   const text = JSON.stringify(next);
   if (isTauri()) {
     try {

@@ -32,7 +32,6 @@ import {
 } from "../lib/taskOrder";
 import { useToast } from "../lib/toast";
 import {
-  createTaskOptimistic,
   deleteTaskOptimistic,
   getCachedTasks,
   listReposLocal,
@@ -42,6 +41,7 @@ import {
   updateTaskOptimistic,
   upsertRepoLocal,
 } from "../lib/sync";
+import { createInboxItem } from "../lib/workbench";
 import { updateTrayBadge } from "../lib/tray";
 
 async function hideWidget() {
@@ -142,7 +142,7 @@ export function WidgetPage() {
 
   async function add() {
     if (!title.trim()) return;
-    await createTaskOptimistic({ title: title.trim(), day });
+    await createInboxItem({ body: title.trim(), source: "widget" });
     setTitle("");
     refreshLists();
   }
@@ -405,13 +405,13 @@ export function WidgetPage() {
         <div className="composer">
           <input
             className="input"
-            placeholder="快速添加…"
+            placeholder="丢进 Inbox…"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") void add();
             }}
-            aria-label="快速添加待办"
+            aria-label="丢进 Inbox"
           />
           <button
             className="btn primary icon"
