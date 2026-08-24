@@ -105,6 +105,7 @@ export function ConversationsPage() {
     <div className="workbench workbench-cols">
       <aside className="card workbench-rail">
         <div className="muted">来源</div>
+        <div className="rail-list">
         {conversations.map((c) => (
           <button
             key={c.id}
@@ -116,12 +117,16 @@ export function ConversationsPage() {
           </button>
         ))}
         {conversations.length === 0 && <p className="note">还没有对话</p>}
-        <button className="btn sm" type="button" style={{ marginTop: 10 }} onClick={() => void importLatestRuns()}>
-          导入 Cursor 运行
-        </button>
+        </div>
+        <div className="rail-actions">
+          <button className="btn sm" type="button" onClick={() => void importLatestRuns()}>
+            导入 Cursor 运行
+          </button>
+        </div>
       </aside>
 
-      <div>
+      <div className="workbench-stage">
+      <div className="workbench-main">
         <div className="hero" style={{ marginBottom: 14 }}>
           <div>
             <div className="hero-eyebrow">原材料</div>
@@ -182,6 +187,7 @@ export function ConversationsPage() {
         )}
       </div>
 
+      {selected ? (
       <aside className="card inspector">
         <h2>从这段抽出</h2>
         <label>
@@ -217,6 +223,8 @@ export function ConversationsPage() {
           写入库 / Inbox
         </button>
       </aside>
+      ) : null}
+      </div>
     </div>
   );
 }

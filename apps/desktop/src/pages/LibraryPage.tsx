@@ -87,6 +87,7 @@ export function LibraryPage() {
     <div className="workbench workbench-cols">
       <aside className="card workbench-rail">
         <div className="muted">类型</div>
+        <div className="rail-list">
         {(
           [
             ["all", "全部"],
@@ -105,9 +106,11 @@ export function LibraryPage() {
             {label}
           </button>
         ))}
+        </div>
       </aside>
 
-      <div>
+      <div className="workbench-stage">
+      <div className="workbench-main">
         <div className="hero" style={{ marginBottom: 14 }}>
           <div>
             <div className="hero-eyebrow">沉淀</div>
@@ -180,10 +183,9 @@ export function LibraryPage() {
         )}
       </div>
 
+      {current ? (
       <aside className="card inspector">
-        {!current ? (
-          <p className="note">选一条看看</p>
-        ) : current.kind === "summary" ? (
+        {current.kind === "summary" ? (
           <>
             <span className="chip">周期</span>
             <h2>{current.title}</h2>
@@ -209,6 +211,8 @@ export function LibraryPage() {
           </>
         )}
       </aside>
+      ) : null}
+      </div>
     </div>
   );
 }

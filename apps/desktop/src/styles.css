@@ -66,6 +66,7 @@ html,
 body,
 #root {
   margin: 0;
+  height: 100%;
   min-height: 100%;
   font-family: var(--font);
   color: var(--label);
@@ -149,15 +150,18 @@ a {
 
 /* —— Shell —— */
 .app-shell {
-  min-height: 100vh;
+  min-height: 100%;
+  height: 100%;
   display: grid;
-  grid-template-columns: var(--sidebar-width) 1fr;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
 }
 
 .sidebar {
   position: sticky;
   top: 0;
-  height: 100vh;
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
   padding: 22px 14px 16px;
   display: flex;
   flex-direction: column;
@@ -290,26 +294,38 @@ a {
 
 .content {
   min-width: 0;
-  padding: 18px 24px 28px;
+  min-height: 0;
+  padding: 16px 20px 20px;
   overflow: auto;
-  contain: layout paint;
-  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  container-type: inline-size;
+  container-name: main;
 }
 
 .content-inner {
   max-width: 940px;
   margin: 0 auto;
+  min-width: 0;
+  width: 100%;
 }
 
 .content-inner.wide {
-  max-width: 1180px;
+  max-width: none;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 @media (max-width: 920px) {
   .app-shell {
     grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
-    align-content: start;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .content {
+    padding: 12px 14px 16px;
   }
 
   .sidebar {
@@ -318,6 +334,7 @@ a {
     z-index: 10;
     height: auto;
     min-height: 52px;
+    overflow: visible;
     flex-direction: row;
     flex-wrap: nowrap;
     align-items: center;
@@ -2606,9 +2623,11 @@ body.kanban-dragging * {
 
 .day-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 18px;
+  grid-template-columns: 1fr;
+  gap: 16px;
   align-items: start;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .list-row.selected {
@@ -2619,16 +2638,92 @@ body.kanban-dragging * {
   cursor: pointer;
 }
 
+.workbench {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+
 .workbench-cols {
   display: grid;
-  grid-template-columns: 200px minmax(0, 1fr) 280px;
-  gap: 16px;
-  align-items: start;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  align-items: stretch;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+.workbench-cols > * {
+  min-width: 0;
+}
+
+.workbench-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.workbench-main {
+  min-width: 0;
+}
+
+.workbench-rail {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 12px;
+}
+
+.rail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  overflow: auto;
+}
+
+.rail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 12px;
 }
 
 .workbench-rail .btn {
-  width: 100%;
-  margin-top: 6px;
+  width: auto;
+  margin-top: 0;
+}
+
+.lens-article {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  padding: 18px 22px 20px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.lens-kicker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.lens-article .empty {
+  flex: 1;
+  min-height: 240px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  text-align: center;
+  gap: 8px;
 }
 
 .list-item {
@@ -2747,14 +2842,18 @@ body.kanban-dragging * {
 }
 
 .lens-article h1 {
-  margin: 8px 0 4px;
-  font-size: 32px;
+  margin: 4px 0 8px;
+  font-size: clamp(22px, 3.2cqi, 30px);
 }
 
 .lens-article h3 {
-  margin: 18px 0 6px;
+  margin: 14px 0 4px;
   font-size: 13px;
   color: var(--secondary-label);
+}
+
+.lens-article > .row {
+  margin-top: 16px;
 }
 
 .lens-article p {
@@ -2792,15 +2891,52 @@ body.kanban-dragging * {
   margin-bottom: 14px;
 }
 
-@media (max-width: 980px) {
-  .day-layout,
+@container main (min-width: 640px) {
   .workbench-cols {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(176px, 220px) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
   }
 
-  .workbench-rail,
-  .sticky-inspect,
-  .inspector {
-    position: static;
+  .rail-list {
+    flex: 1;
   }
+
+  .workbench-stage > .lens-article,
+  .workbench-stage > .workbench-main {
+    flex: 1 0 auto;
+  }
+}
+
+/* 真正三列：主栏 + 挂载/抽出，只在内容区够宽时才并排 */
+@container main (min-width: 1080px) {
+  .workbench-stage {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+    grid-template-rows: minmax(0, 1fr);
+    align-items: stretch;
+    overflow: hidden;
+  }
+
+  .workbench-stage > .lens-article,
+  .workbench-stage > .workbench-main,
+  .workbench-stage > .inspector {
+    min-height: 0;
+    overflow: auto;
+  }
+}
+
+@container main (min-width: 720px) {
+  .day-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+  }
+
+  .day-layout .sticky-inspect {
+    position: sticky;
+    top: 8px;
+  }
+}
+
+.workbench-rail,
+.inspector {
+  position: static;
 }

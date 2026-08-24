@@ -146,36 +146,41 @@ export function LensesPage() {
     <div className="workbench workbench-cols">
       <aside className="card workbench-rail">
         <div className="muted">你的原则 · {lenses.length}</div>
-        {lenses.map((lens) => (
-          <button
-            key={lens.id}
-            type="button"
-            className={`list-item ${selected?.id === lens.id && !editing ? "on" : ""}`}
-            onClick={() => {
-              setSelectedId(lens.id);
-              setEditing(false);
-            }}
-          >
-            {lens.title}
-            {lens.draft ? " · 草稿" : ""}
+        <div className="rail-list">
+          {lenses.map((lens) => (
+            <button
+              key={lens.id}
+              type="button"
+              className={`list-item ${selected?.id === lens.id && !editing ? "on" : ""}`}
+              onClick={() => {
+                setSelectedId(lens.id);
+                setEditing(false);
+              }}
+            >
+              {lens.title}
+              {lens.draft ? " · 草稿" : ""}
+            </button>
+          ))}
+        </div>
+        <div className="rail-actions">
+          <button className="btn sm" type="button" onClick={startCreate}>
+            新建
           </button>
-        ))}
-        <button className="btn sm" type="button" style={{ marginTop: 10 }} onClick={startCreate}>
-          新建原则
-        </button>
-        <button className="btn sm" type="button" onClick={() => void onImportStarter()}>
-          导入常用原则
-        </button>
-        <button className="btn sm ghost" type="button" onClick={() => void onImportFile()}>
-          从文件导入
-        </button>
-        {lenses.length > 0 && (
-          <button className="btn sm ghost" type="button" onClick={onExport}>
-            导出 JSON
+          <button className="btn sm" type="button" onClick={() => void onImportStarter()}>
+            导入常用
           </button>
-        )}
+          <button className="btn sm ghost" type="button" onClick={() => void onImportFile()}>
+            从文件
+          </button>
+          {lenses.length > 0 && (
+            <button className="btn sm ghost" type="button" onClick={onExport}>
+              导出
+            </button>
+          )}
+        </div>
       </aside>
 
+      <div className="workbench-stage">
       <article className="lens-article">
         {editing ? (
           <form
@@ -236,8 +241,10 @@ export function LensesPage() {
           </div>
         ) : (
           <>
-            {selected.draft && <span className="chip warn">草稿 · 确认后才用来提问</span>}
-            {selected.domain && <span className="chip">{selected.domain}</span>}
+            <div className="lens-kicker">
+              {selected.draft && <span className="chip warn">草稿 · 确认后才用来提问</span>}
+              {selected.domain && <span className="chip">{selected.domain}</span>}
+            </div>
             <h1 className="display-serif">{selected.title}</h1>
             <h3>是什么</h3>
             <p>{selected.what || "（还没写）"}</p>
@@ -276,6 +283,7 @@ export function LensesPage() {
         )}
       </article>
 
+      {selected ? (
       <aside className="card inspector">
         <div className="muted">挂在这条原则上</div>
         {linkedNotes.length === 0 && linkedTasks.length === 0 && (
@@ -288,6 +296,8 @@ export function LensesPage() {
           <div className="list-item" key={note.id}>{note.title}</div>
         ))}
       </aside>
+      ) : null}
+      </div>
     </div>
   );
 }
