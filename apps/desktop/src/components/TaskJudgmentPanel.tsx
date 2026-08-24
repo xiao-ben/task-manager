@@ -36,7 +36,7 @@ export function TaskJudgmentPanel({ task, onDispatch, onChanged }: Props) {
   if (!task) {
     return (
       <aside className="card inspector sticky-inspect">
-        <p className="note">点一条任务，用透镜看看。不替你做决定。</p>
+        <p className="note">点一条任务，用原则看看。不替你做决定。</p>
       </aside>
     );
   }
@@ -76,13 +76,13 @@ export function TaskJudgmentPanel({ task, onDispatch, onChanged }: Props) {
           className="select"
           style={{ marginTop: 8 }}
           value=""
-          aria-label="挂上透镜"
+          aria-label="挂上原则"
           onChange={(e) => {
             const id = e.target.value;
             if (id) void linkTaskLens(task.id, id).then(() => onChanged?.());
           }}
         >
-          <option value="">挂上一条透镜…</option>
+          <option value="">挂上一条原则…</option>
           {allLenses
             .filter((l) => !attached.some((a) => a.id === l.id))
             .map((lens) => (
@@ -95,7 +95,7 @@ export function TaskJudgmentPanel({ task, onDispatch, onChanged }: Props) {
 
       {active.filter((l) => !l.draft).length > 0 ? (
         <div className="ask">
-          <b>用这些透镜问你</b>
+          <b>用这些原则问你</b>
           {active
             .filter((l) => !l.draft)
             .flatMap((lens) =>
@@ -108,7 +108,7 @@ export function TaskJudgmentPanel({ task, onDispatch, onChanged }: Props) {
             ))}
         </div>
       ) : (
-        <p className="note">还没有可用的透镜。先在「透镜」里写一条，或从 Inbox 做透镜并确认。</p>
+        <p className="note">还没有可用的原则。先在「原则」里导入或写一条，草稿确认后才会提问。</p>
       )}
 
       <textarea

@@ -147,7 +147,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             <span className="nav-icon">
               <IconLens size={16} />
             </span>
-            <span className="nav-label">透镜</span>
+            <span className="nav-label">原则</span>
           </NavLink>
           <NavLink to="/talk">
             <span className="nav-icon">

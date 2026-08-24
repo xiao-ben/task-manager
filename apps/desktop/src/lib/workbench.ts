@@ -11,6 +11,7 @@ import type {
 } from "@task-manager/shared";
 import { todayKey } from "@task-manager/shared";
 import type { LocalDb } from "./localDb";
+import type { PrincipleSeed } from "./principlePack";
 import { createTaskOptimistic, mutateLocalDb } from "./sync";
 
 function nowIso() {
@@ -120,7 +121,7 @@ export async function triageInboxToLibrary(item: InboxItem): Promise<LibraryEntr
 export async function triageInboxToLens(item: InboxItem): Promise<Lens> {
   const lens: Lens = {
     id: crypto.randomUUID(),
-    title: item.body.slice(0, 24).replace(/\s+/g, "") || "未命名透镜",
+    title: item.body.slice(0, 24).replace(/\s+/g, "") || "未命名原则",
     domain: "",
     what: item.body,
     when: "",
@@ -219,6 +220,45 @@ export async function confirmLens(id: string): Promise<void> {
       lens.id === id ? { ...lens, draft: false, updatedAt: nowIso() } : lens,
     ),
   }));
+}
+
+export async function importPrinciples(
+  seeds: PrincipleSeed[],
+): Promise<{ added: number; skipped: number }> {
+  const now = nowIso();
+  let added = 0;
+  let skipped = 0;
+  await mutateLocalDb((db) => {
+    const existing = new Set(
+      db.lenses.map((lens) => lens.title.trim().toLowerCase()),
+    );
+    const extra: Lens[] = [];
+    for (const seed of seeds) {
+      const key = seed.title.trim().toLowerCase();
+      if (!key || existing.has(key)) {
+        skipped += 1;
+        continue;
+      }
+      existing.add(key);
+      added += 1;
+      extra.push({
+        id: crypto.randomUUID(),
+        title: seed.title.trim().slice(0, 80),
+        domain: seed.domain ?? "",
+        what: seed.what ?? "",
+        when: seed.when ?? "",
+        whenNot: seed.whenNot ?? "",
+        questions: seed.questions ?? [],
+        draft: false,
+        usedCount: 0,
+        lastUsedAt: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+    return extra.length ? { ...db, lenses: [...extra, ...db.lenses] } : db;
+  });
+  return { added, skipped };
 }
 
 export async function deleteLens(id: string): Promise<void> {

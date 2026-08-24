@@ -1,10 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Lens } from "@task-manager/shared";
 import { IconLens } from "../components/Icons";
+import {
+  parsePrinciplePack,
+  serializePrinciples,
+  STARTER_PRINCIPLES,
+} from "../lib/principlePack";
 import { getCachedDb, initLocalStore, subscribeSync } from "../lib/sync";
+import { useToast } from "../lib/toast";
 import {
   confirmLens,
   deleteLens,
+  importPrinciples,
   upsertLens,
 } from "../lib/workbench";
 
@@ -18,6 +25,7 @@ const emptyForm = {
 };
 
 export function LensesPage() {
+  const toast = useToast();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -71,6 +79,49 @@ export function LensesPage() {
     setEditing(true);
   }
 
+  async function onImportStarter() {
+    const result = await importPrinciples(STARTER_PRINCIPLES);
+    refresh();
+    toast.show({
+      message:
+        result.added > 0
+          ? `已导入 ${result.added} 条常用原则` +
+            (result.skipped ? `，跳过 ${result.skipped} 条同名` : "")
+          : "这些原则已经在了，没有新增",
+      kind: "ok",
+    });
+  }
+
+  async function onImportFile() {
+    const raw = await pickJsonFile();
+    if (raw == null) return;
+    try {
+      const seeds = parsePrinciplePack(raw);
+      const result = await importPrinciples(seeds);
+      refresh();
+      toast.show({
+        message: `从文件导入 ${result.added} 条` +
+          (result.skipped ? `，跳过 ${result.skipped} 条同名` : ""),
+        kind: "ok",
+      });
+    } catch (err) {
+      toast.show({
+        message: err instanceof Error ? err.message : "导入失败",
+        kind: "err",
+      });
+    }
+  }
+
+  function onExport() {
+    const text = serializePrinciples(lenses);
+    const blob = new Blob([text], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "principles.json";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
   async function save() {
     if (!form.title.trim()) return;
     const saved = await upsertLens({
@@ -94,7 +145,7 @@ export function LensesPage() {
   return (
     <div className="workbench workbench-cols">
       <aside className="card workbench-rail">
-        <div className="muted">你的透镜 · {lenses.length}</div>
+        <div className="muted">你的原则 · {lenses.length}</div>
         {lenses.map((lens) => (
           <button
             key={lens.id}
@@ -110,8 +161,19 @@ export function LensesPage() {
           </button>
         ))}
         <button className="btn sm" type="button" style={{ marginTop: 10 }} onClick={startCreate}>
-          新建透镜
+          新建原则
         </button>
+        <button className="btn sm" type="button" onClick={() => void onImportStarter()}>
+          导入常用原则
+        </button>
+        <button className="btn sm ghost" type="button" onClick={() => void onImportFile()}>
+          从文件导入
+        </button>
+        {lenses.length > 0 && (
+          <button className="btn sm ghost" type="button" onClick={onExport}>
+            导出 JSON
+          </button>
+        )}
       </aside>
 
       <article className="lens-article">
@@ -159,10 +221,18 @@ export function LensesPage() {
         ) : !selected ? (
           <div className="empty">
             <div className="empty-icon"><IconLens size={22} /></div>
-            <div className="headline" style={{ fontSize: 15 }}>还没有透镜</div>
+            <div className="headline" style={{ fontSize: 15 }}>还没有原则</div>
             <p className="subhead" style={{ margin: 0 }}>
-              写下你反复在用的问法。不要抄书，用自己的话。
+              可以先导入一组常用判断框架，再改成自己的话。黄金这类具体原则请自己写。
             </p>
+            <div className="row wrap" style={{ marginTop: 12 }}>
+              <button className="btn primary" type="button" onClick={() => void onImportStarter()}>
+                导入常用原则
+              </button>
+              <button className="btn" type="button" onClick={startCreate}>
+                自己写一条
+              </button>
+            </div>
           </div>
         ) : (
           <>
@@ -194,7 +264,7 @@ export function LensesPage() {
             <div className="row wrap">
               {selected.draft && (
                 <button className="btn sm primary" type="button" onClick={() => void confirmLens(selected.id).then(refresh)}>
-                  确认这条透镜
+                  确认这条原则
                 </button>
               )}
               <button className="btn sm" type="button" onClick={() => startEdit(selected)}>编辑</button>
@@ -207,7 +277,7 @@ export function LensesPage() {
       </article>
 
       <aside className="card inspector">
-        <div className="muted">挂在这副透镜上</div>
+        <div className="muted">挂在这条原则上</div>
         {linkedNotes.length === 0 && linkedTasks.length === 0 && (
           <p className="note">还没有任务或笔记挂在这里</p>
         )}
@@ -220,4 +290,25 @@ export function LensesPage() {
       </aside>
     </div>
   );
+}
+
+function pickJsonFile(): Promise<string | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "application/json,.json";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) {
+        resolve(null);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () =>
+        resolve(typeof reader.result === "string" ? reader.result : null);
+      reader.onerror = () => resolve(null);
+      reader.readAsText(file);
+    };
+    input.click();
+  });
 }

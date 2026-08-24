@@ -197,7 +197,7 @@ export function ConversationsPage() {
           <textarea className="textarea" rows={2} value={inspiration} onChange={(e) => setInspiration(e.target.value)} />
         </label>
         <label>
-          透镜草稿名称
+          原则草稿名称
           <input className="input" value={lensTitle} onChange={(e) => setLensTitle(e.target.value)} placeholder="例如：黄金" />
         </label>
         <label>

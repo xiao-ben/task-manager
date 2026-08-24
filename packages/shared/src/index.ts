@@ -239,7 +239,7 @@ export function generateSummaryDraft(
   return lines.join("\n");
 }
 
-/** Inbox / 库 / 透镜 / 对话 — local-first, not synced to the cloud API yet. */
+/** Inbox / 库 / 原则 / 对话 — local-first, not synced to the cloud API yet. */
 
 export const InboxSourceSchema = z.enum([
   "manual",

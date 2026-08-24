@@ -2542,7 +2542,7 @@ body.kanban-dragging * {
   }
 }
 
-/* —— 工作台：Inbox / 库 / 透镜 / 对话 —— */
+/* —— 工作台：Inbox / 库 / 原则 / 对话 —— */
 .nav-badge {
   margin-left: auto;
   min-width: 18px;
@@ -2626,10 +2626,9 @@ body.kanban-dragging * {
   align-items: start;
 }
 
-.workbench-rail {
-  padding: 10px;
-  position: sticky;
-  top: 8px;
+.workbench-rail .btn {
+  width: 100%;
+  margin-top: 6px;
 }
 
 .list-item {

@@ -160,7 +160,7 @@ export function InboxPage() {
                     })
                   }
                 >
-                  做透镜
+                  写成原则
                 </button>
                 <button
                   className="btn sm ghost"
