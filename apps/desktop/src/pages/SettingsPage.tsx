@@ -468,6 +468,15 @@ export function SettingsPage() {
           <p className="subhead" style={{ margin: 0 }}>
             原生 App 启动时会自动拉起本机 sidecar（需本机 Node.js ≥ 22）；退出时若由本应用启动则会一并关闭。失败时可点「启动 Sidecar」重试。
           </p>
+          <div className="field">
+            <span className="field-label">其他 Agent 沉淀</span>
+            <p className="subhead" style={{ margin: "4px 0 8px" }}>
+              本机接口 <code>POST http://127.0.0.1:3927/ingest</code>
+              ，只监听 localhost。其他 Agent 可用仓库里的 skill
+              <code> skills/task-manager-capture </code>
+              把讨论过的结论、待办和原则草稿写进来。
+            </p>
+          </div>
           <div>
             <button
               className="btn sm bordered"

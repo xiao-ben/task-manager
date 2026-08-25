@@ -238,3 +238,97 @@ export function generateSummaryDraft(
   lines.push("", "## 备注", "", "");
   return lines.join("\n");
 }
+
+/** Inbox / 库 / 原则 / 对话 — local-first, not synced to the cloud API yet. */
+
+export const InboxSourceSchema = z.enum([
+  "manual",
+  "widget",
+  "conversation",
+  "agent",
+  "other",
+]);
+export type InboxSource = z.infer<typeof InboxSourceSchema>;
+
+export const InboxItemSchema = z.object({
+  id: z.string().uuid(),
+  body: z.string().min(1).max(4000),
+  source: InboxSourceSchema,
+  conversationId: z.string().nullable().default(null),
+  createdAt: z.string(),
+});
+export type InboxItem = z.infer<typeof InboxItemSchema>;
+
+export const LibraryKindSchema = z.enum([
+  "note",
+  "judgment",
+  "excerpt",
+]);
+export type LibraryKind = z.infer<typeof LibraryKindSchema>;
+
+export const LibraryEntrySchema = z.object({
+  id: z.string().uuid(),
+  title: z.string().min(1).max(200),
+  content: z.string().max(20000).default(""),
+  kind: LibraryKindSchema,
+  lensIds: z.array(z.string()).default([]),
+  taskIds: z.array(z.string()).default([]),
+  conversationIds: z.array(z.string()).default([]),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type LibraryEntry = z.infer<typeof LibraryEntrySchema>;
+
+export const LensSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string().min(1).max(80),
+  domain: z.string().max(80).default(""),
+  what: z.string().max(2000).default(""),
+  when: z.string().max(2000).default(""),
+  whenNot: z.string().max(2000).default(""),
+  questions: z.array(z.string().max(300)).max(8).default([]),
+  draft: z.boolean().default(false),
+  usedCount: z.number().int().nonnegative().default(0),
+  lastUsedAt: z.string().nullable().default(null),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type Lens = z.infer<typeof LensSchema>;
+
+export const ConversationSourceSchema = z.enum([
+  "cursor",
+  "claude",
+  "chatgpt",
+  "other",
+]);
+export type ConversationSource = z.infer<typeof ConversationSourceSchema>;
+
+export const ConversationSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string().min(1).max(200),
+  source: ConversationSourceSchema,
+  body: z.string().max(100000).default(""),
+  taskId: z.string().nullable().default(null),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type Conversation = z.infer<typeof ConversationSchema>;
+
+export const TaskLensLinkSchema = z.object({
+  taskId: z.string(),
+  lensId: z.string(),
+});
+export type TaskLensLink = z.infer<typeof TaskLensLinkSchema>;
+
+export {
+  IngestDepositSchema,
+  IngestPrincipleSchema,
+  applyIngestToDb,
+  ensureIngestCollections,
+} from "./ingest.js";
+export type {
+  IngestDeposit,
+  IngestDepositInput,
+  IngestResult,
+  IngestableDb,
+} from "./ingest.js";

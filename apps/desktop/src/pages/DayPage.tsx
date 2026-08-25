@@ -7,6 +7,7 @@ import { PeriodNav } from "../components/PeriodNav";
 import { TaskBoard } from "../components/TaskBoard";
 import { TaskEditModal } from "../components/TaskEditModal";
 import { TaskEditor } from "../components/TaskEditor";
+import { TaskJudgmentPanel } from "../components/TaskJudgmentPanel";
 import { TaskMoreMenu } from "../components/TaskMoreMenu";
 import {
   IconAgent,
@@ -110,6 +111,7 @@ export function DayPage() {
   const [runsLoading, setRunsLoading] = useState(false);
   const [openTranscript, setOpenTranscript] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [summary, setSummary] = useState("");
   const [summaryMsg, setSummaryMsg] = useState<string | null>(null);
@@ -209,6 +211,7 @@ export function DayPage() {
     }
     const focus = params.get("focus");
     if (focus) {
+      setSelectedId(focus);
       window.setTimeout(() => {
         document
           .querySelector(`[data-task-id="${focus}"]`)
@@ -486,6 +489,7 @@ export function DayPage() {
   }
 
   return (
+    <div className="day-layout">
     <div className="stack">
       <header className="page-header">
         <div className="hero">
@@ -798,7 +802,11 @@ export function DayPage() {
                   }}
                 />
               ) : (
-              <div className={`list-row s-${task.status}`} data-task-id={task.id}>
+              <div
+                className={`list-row s-${task.status} ${selectedId === task.id ? "selected" : ""}`}
+                data-task-id={task.id}
+                onClick={() => setSelectedId(task.id)}
+              >
                 <button
                   className={`check ${task.status === "done" ? "on" : task.status === "doing" ? "doing" : ""}`}
                   type="button"
@@ -1221,6 +1229,12 @@ export function DayPage() {
           />
         </div>
       </section>
+    </div>
+    <TaskJudgmentPanel
+      task={[...tasks, ...overdue].find((t) => t.id === selectedId) ?? null}
+      onDispatch={(t) => void onStartAgent(t)}
+      onChanged={() => syncTasksFromCache()}
+    />
     </div>
   );
 }

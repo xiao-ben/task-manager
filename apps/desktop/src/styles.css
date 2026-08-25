@@ -66,6 +66,7 @@ html,
 body,
 #root {
   margin: 0;
+  height: 100%;
   min-height: 100%;
   font-family: var(--font);
   color: var(--label);
@@ -112,6 +113,14 @@ a {
   color: var(--tertiary-label);
 }
 
+code {
+  font-family: var(--mono);
+  font-size: 0.92em;
+  background: var(--fill);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
 /* —— 印章 —— */
 .seal {
   display: inline-grid;
@@ -149,15 +158,18 @@ a {
 
 /* —— Shell —— */
 .app-shell {
-  min-height: 100vh;
+  min-height: 100%;
+  height: 100%;
   display: grid;
-  grid-template-columns: var(--sidebar-width) 1fr;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
 }
 
 .sidebar {
   position: sticky;
   top: 0;
-  height: 100vh;
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
   padding: 22px 14px 16px;
   display: flex;
   flex-direction: column;
@@ -290,22 +302,38 @@ a {
 
 .content {
   min-width: 0;
-  padding: 18px 24px 28px;
+  min-height: 0;
+  padding: 16px 20px 20px;
   overflow: auto;
-  contain: layout paint;
-  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  container-type: inline-size;
+  container-name: main;
 }
 
 .content-inner {
   max-width: 940px;
   margin: 0 auto;
+  min-width: 0;
+  width: 100%;
+}
+
+.content-inner.wide {
+  max-width: none;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 @media (max-width: 920px) {
   .app-shell {
     grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
-    align-content: start;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .content {
+    padding: 12px 14px 16px;
   }
 
   .sidebar {
@@ -314,6 +342,7 @@ a {
     z-index: 10;
     height: auto;
     min-height: 52px;
+    overflow: visible;
     flex-direction: row;
     flex-wrap: nowrap;
     align-items: center;
@@ -2536,4 +2565,410 @@ body.kanban-dragging * {
   .task-editor-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* —— 工作台：Inbox / 库 / 原则 / 对话 —— */
+.nav-badge {
+  margin-left: auto;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fdf3ee;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-grid;
+  place-items: center;
+}
+
+.btn.ghost {
+  background: transparent;
+  border: 1px solid var(--panel-border);
+}
+
+.btn.ghost:hover {
+  background: var(--fill);
+}
+
+.row.wrap {
+  flex-wrap: wrap;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--fill);
+  color: var(--secondary-label);
+  font-size: 11px;
+  border: 0;
+  min-height: 22px;
+}
+
+.chip.indigo {
+  background: var(--indigo-soft);
+  color: var(--indigo);
+}
+
+.chip.warn {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.muted {
+  font-size: 11px;
+  color: var(--tertiary-label);
+  padding: 4px 4px 8px;
+}
+
+.note {
+  font-size: 12.5px;
+  color: var(--secondary-label);
+  line-height: 1.55;
+}
+
+.day-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  align-items: start;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.list-row.selected {
+  background: rgba(214, 64, 31, 0.05);
+}
+
+.list-row {
+  cursor: pointer;
+}
+
+.workbench {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.workbench > .empty {
+  flex: 1;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+}
+
+.workbench-cols {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  align-items: stretch;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+.workbench-cols > * {
+  min-width: 0;
+}
+
+.workbench-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.workbench-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.workbench-main > .empty {
+  flex: 1;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+}
+
+.workbench-rail {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 12px;
+}
+
+.rail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  overflow: auto;
+}
+
+.rail-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 12px;
+}
+
+.workbench-rail .btn {
+  width: 100%;
+  margin-top: 0;
+}
+
+.lens-article {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  padding: 18px 22px 20px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.lens-kicker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.lens-article .empty {
+  flex: 1;
+  min-height: 240px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  text-align: center;
+  gap: 8px;
+}
+
+.list-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 9px;
+  border: 0;
+  background: transparent;
+  color: var(--secondary-label);
+  font-size: 13px;
+}
+
+.list-item.on,
+.list-item:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.inspector {
+  padding: 16px;
+  position: sticky;
+  top: 8px;
+}
+
+.inspector h2 {
+  margin: 8px 0 6px;
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.ask {
+  background: #fbf6ee;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 10px 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.ask b {
+  display: block;
+  color: var(--warning);
+  font-size: 11px;
+  margin-bottom: 6px;
+}
+
+.inspect-body {
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--label);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 8px 0 12px;
+}
+
+.inbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.inbox-card {
+  padding: 14px 16px;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
+.inbox-body {
+  margin: 8px 0 12px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.workbench-capture {
+  margin-bottom: 16px;
+}
+
+.library-new {
+  display: flex;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.library-row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--separator);
+  background: transparent;
+}
+
+.library-row:last-child {
+  border-bottom: 0;
+}
+
+.library-row.sel,
+.library-row:hover {
+  background: rgba(214, 64, 31, 0.04);
+}
+
+.t-title {
+  font-size: 14px;
+  font-weight: 560;
+}
+
+.lens-article h1 {
+  margin: 4px 0 8px;
+  font-size: clamp(22px, 3.2cqi, 30px);
+}
+
+.lens-article h3 {
+  margin: 14px 0 4px;
+  font-size: 13px;
+  color: var(--secondary-label);
+}
+
+.lens-article > .row {
+  margin-top: 16px;
+}
+
+.lens-article p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.lens-questions {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.lens-form,
+.paste-form,
+.conv-body,
+.inspector label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.inspector label,
+.lens-form label {
+  font-size: 12px;
+  color: var(--secondary-label);
+}
+
+.paste-form,
+.conv-body {
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+@container main (min-width: 640px) {
+  .workbench-cols {
+    grid-template-columns: minmax(176px, 220px) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .rail-list {
+    flex: 1;
+  }
+
+  .workbench-stage > .lens-article,
+  .workbench-stage > .workbench-main {
+    flex: 1 0 auto;
+  }
+}
+
+/* 真正三列：主栏 + 挂载/抽出，只在内容区够宽时才并排 */
+@container main (min-width: 1080px) {
+  .workbench-stage {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+    grid-template-rows: minmax(0, 1fr);
+    align-items: start;
+    overflow: hidden;
+  }
+
+  .workbench-stage > .lens-article,
+  .workbench-stage > .workbench-main {
+    min-height: 0;
+    overflow: auto;
+    align-self: stretch;
+  }
+
+  .workbench-stage > .inspector {
+    min-height: 0;
+    max-height: 100%;
+    overflow: auto;
+  }
+}
+
+@container main (min-width: 720px) {
+  .day-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+  }
+
+  .day-layout .sticky-inspect {
+    position: sticky;
+    top: 8px;
+  }
+}
+
+.workbench-rail,
+.inspector {
+  position: static;
 }

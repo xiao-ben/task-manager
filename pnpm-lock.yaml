@@ -118,6 +118,9 @@ importers:
       '@cursor/sdk':
         specifier: ^1.0.0
         version: 1.0.27
+      '@task-manager/shared':
+        specifier: workspace:*
+        version: link:../packages/shared
       zod:
         specifier: ^3.24.2
         version: 3.25.76

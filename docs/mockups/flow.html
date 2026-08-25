@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>任务台 · 产品动线</title>
+    <style>
+      :root {
+        --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", sans-serif;
+        --serif: "Songti SC", "STSong", "Noto Serif SC", Georgia, serif;
+        --bg: #f4f1ea;
+        --panel: #fffdf8;
+        --label: #211d17;
+        --secondary: #7a7264;
+        --muted: #b0a894;
+        --line: rgba(28, 24, 18, 0.12);
+        --accent: #d6401f;
+        --accent-soft: rgba(214, 64, 31, 0.1);
+        --indigo: #3556c8;
+        --indigo-soft: rgba(53, 86, 200, 0.12);
+        --ok: #2e7d46;
+        --ok-soft: rgba(46, 125, 70, 0.12);
+        --warn: #a86412;
+        --warn-soft: rgba(168, 100, 18, 0.12);
+        --shadow: 0 1px 0 rgba(28, 24, 18, 0.03), 0 10px 28px rgba(28, 24, 18, 0.06);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: var(--font);
+        color: var(--label);
+        background:
+          radial-gradient(1000px 520px at 18% -10%, rgba(214, 64, 31, 0.05), transparent 58%),
+          var(--bg);
+      }
+      .wrap { max-width: 1100px; margin: 0 auto; padding: 36px 24px 64px; }
+      header { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin-bottom: 28px; }
+      h1 { margin: 0; font-family: var(--serif); font-size: 32px; font-weight: 600; }
+      .sub { color: var(--secondary); font-size: 14px; }
+      a { color: var(--indigo); text-decoration: none; }
+      .arrow { text-align: center; color: var(--accent); font-size: 18px; letter-spacing: 2px; padding: 6px 0; }
+      .arrow span { color: var(--muted); font-size: 12px; letter-spacing: 0; margin-left: 8px; }
+      .row { display: grid; gap: 12px; }
+      .row.g4 { grid-template-columns: repeat(4, 1fr); }
+      .row.g3 { grid-template-columns: repeat(3, 1fr); }
+      .row.g2 { grid-template-columns: 1.2fr 1fr; }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 14px 16px;
+        box-shadow: var(--shadow);
+      }
+      .card h3 { margin: 0 0 6px; font-size: 15px; }
+      .card p, .card li { margin: 0; font-size: 13px; color: var(--secondary); line-height: 1.55; }
+      .card ul { margin: 6px 0 0; padding-left: 18px; }
+      .hub {
+        text-align: center;
+        padding: 22px 16px;
+        background: var(--accent-soft);
+        border-color: rgba(214, 64, 31, 0.22);
+      }
+      .hub h2 { margin: 0 0 4px; font-family: var(--serif); font-size: 28px; }
+      .tag {
+        display: inline-block;
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: rgba(28,24,18,0.06);
+        color: var(--secondary);
+        margin-bottom: 8px;
+      }
+      .tag.red { background: var(--accent-soft); color: var(--accent); }
+      .tag.blue { background: var(--indigo-soft); color: var(--indigo); }
+      .tag.ok { background: var(--ok-soft); color: var(--ok); }
+      .tag.warn { background: var(--warn-soft); color: var(--warn); }
+      .discard { opacity: 0.62; }
+      .loop {
+        margin-top: 8px;
+        padding: 16px;
+        border: 1.5px dashed rgba(53, 86, 200, 0.28);
+        border-radius: 16px;
+        background: rgba(53, 86, 200, 0.04);
+      }
+      .loop .label { font-size: 12px; color: var(--indigo); font-weight: 650; margin-bottom: 10px; }
+      .foot { margin-top: 18px; color: var(--muted); font-size: 12px; }
+      .legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 8px 0 22px; font-size: 12px; color: var(--secondary); }
+      .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <div>
+          <h1>产品动线</h1>
+          <div class="sub">所有东西先进 Inbox，再决定今天做、留下来，还是变成判断框架。</div>
+        </div>
+        <a href="./index.html">← 页面草图</a>
+      </header>
+
+      <div class="legend">
+        <span><i style="background:#d6401f"></i>主路径：捕捉 → 分流 → 今日</span>
+        <span><i style="background:#3556c8"></i>回流：对话抽出后再进来</span>
+        <span><i style="background:#2e7d46"></i>沉淀：判断和复盘写回库 / 透镜</span>
+      </div>
+
+      <div class="row g4">
+        <div class="card"><span class="tag">入口</span><h3>小窗</h3><p>盯今天，一句话丢进来</p></div>
+        <div class="card"><span class="tag">入口</span><h3>一句话 ⌘N</h3><p>灵感、待办，先不承诺</p></div>
+        <div class="card"><span class="tag">入口</span><h3>飞书 / 日历</h3><p>以后只进、不回</p></div>
+        <div class="card"><span class="tag">入口</span><h3>Agent 对话</h3><p>Cursor / Claude 等存档</p></div>
+      </div>
+      <div class="arrow">↓ <span>全部先汇入</span></div>
+      <div class="card hub">
+        <span class="tag red">中枢</span>
+        <h2>Inbox</h2>
+        <p>未分类的东西不进今日，也不进知识库。</p>
+      </div>
+      <div class="arrow">↓ <span>每天或每周清一次，四条出路</span></div>
+      <div class="row g4">
+        <div class="card"><span class="tag red">行动</span><h3>今日</h3><p>今天要推进的事</p></div>
+        <div class="card"><span class="tag ok">沉淀</span><h3>入库</h3><p>已经消化过的笔记 / 结论</p></div>
+        <div class="card"><span class="tag warn">判断</span><h3>做透镜</h3><p>以后还要用的问法</p></div>
+        <div class="card discard"><span class="tag">结束</span><h3>丢掉</h3><p>不占地方</p></div>
+      </div>
+
+      <div class="arrow">↓ <span>今日里的一条任务</span></div>
+      <div class="row g3">
+        <div class="card">
+          <span class="tag red">1</span>
+          <h3>打开任务</h3>
+          <p>看备注、相关库、相关对话</p>
+        </div>
+        <div class="card">
+          <span class="tag warn">2</span>
+          <h3>透镜提问</h3>
+          <p>侧栏出现 2～3 个「问自己」。不替你做决定。</p>
+        </div>
+        <div class="card">
+          <span class="tag">3</span>
+          <h3>三选一</h3>
+          <ul>
+            <li>记下判断 → 回写透镜 / 库</li>
+            <li>自己做完</li>
+            <li>派给外部 Agent</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="loop">
+        <div class="label">可选回流 · 不是主产品</div>
+        <div class="row g3">
+          <div class="card">
+            <span class="tag blue">派发</span>
+            <h3>带 brief 出门</h3>
+            <p>任务 + 相关笔记 + 相关透镜，交给 Cursor 或其他 Agent</p>
+          </div>
+          <div class="card">
+            <span class="tag blue">存档</span>
+            <h3>对话回来</h3>
+            <p>整段对话挂在任务上，不当聊天产品</p>
+          </div>
+          <div class="card">
+            <span class="tag blue">抽出</span>
+            <h3>结论 / 待办 / 灵感 / 透镜草稿</h3>
+            <p>抽出物回到 Inbox 或库，你确认后才成为透镜</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow">↓ <span>晚上 / 周末</span></div>
+      <div class="row g2">
+        <div class="card">
+          <span class="tag ok">收工</span>
+          <h3>日 / 周 / 月</h3>
+          <p>未完成去哪、用过哪条透镜、Inbox 清了没。总结进库，不是死档案。</p>
+        </div>
+        <div class="card">
+          <span class="tag warn">透镜变准</span>
+          <h3>判断对错 → 改问法</h3>
+          <p>底层逻辑只从你反复用过的判断里长出来，不预装鸡汤。</p>
+        </div>
+      </div>
+      <p class="foot">主循环：捕捉 → Inbox → 今日 → 判断 / 完成 → 复盘。Agent 只是其中一条支路。</p>
+    </div>
+  </body>
+</html>
