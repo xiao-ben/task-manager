@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { z } from "zod";
+import { IngestDepositSchema, applyIngestToDb } from "@task-manager/shared";
 
 // 加载 sidecar/.env（CURSOR_API_KEY 等），文件不存在时静默跳过
 try {
@@ -201,6 +202,7 @@ async function generateTaskSummary(input: z.infer<typeof TaskSummarizeSchema>) {
 const PORT = Number(process.env.SIDECAR_PORT ?? 3927);
 
 function localDbPath(): string {
+  if (process.env.TASK_MANAGER_DATA?.trim()) return process.env.TASK_MANAGER_DATA.trim();
   return path.join(os.homedir(), ".cursor", "task-manager", "data.json");
 }
 
@@ -818,6 +820,55 @@ const server = http.createServer(async (req, res) => {  res.setHeader("Access-Co
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
       console.error("task summarize failed:", message);
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: message }));
+    }
+    return;
+  }
+
+  if (req.method === "GET" && req.url === "/ingest") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(
+      JSON.stringify({
+        ok: true,
+        endpoint: "POST /ingest",
+        bind: "127.0.0.1",
+        example: {
+          title: "要不要加黄金仓位",
+          source: "claude",
+          agent: "claude-code",
+          body: "讨论摘要或原文",
+          conclusions: ["只在下跌后加，不追高"],
+          todos: ["看一眼当前仓位占比"],
+          inspiration: ["黄金更像保险，不是收益引擎"],
+          principle: {
+            title: "黄金仓位",
+            what: "把黄金当保险，而不是进攻仓",
+            questions: ["这是在买保险，还是在追涨？"],
+          },
+        },
+      }),
+    );
+    return;
+  }
+
+  if (req.method === "POST" && req.url === "/ingest") {
+    try {
+      const raw = await readBody(req);
+      const parsed = IngestDepositSchema.safeParse(JSON.parse(raw || "{}"));
+      if (!parsed.success) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: parsed.error.flatten() }));
+        return;
+      }
+      const db = readLocalDbFile();
+      const { db: next, result } = applyIngestToDb(db, parsed.data);
+      writeLocalDbFile({ ...db, ...next } as LocalDbShape);
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true, ...result }));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      console.error("ingest failed:", message);
       res.writeHead(500, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: message }));
     }

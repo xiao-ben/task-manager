@@ -137,6 +137,26 @@ pnpm dev:sidecar
 
 本地模式会把会话写进同一份 `data.json`。若要用云端 API，再写入 `~/.cursor/task-manager.env.json`（模板见 `hooks-templates/task-manager.env.json.example`）。
 
+### 4. 其他 Agent 沉淀（本机接口 + Skill）
+
+讨论结束后，其他 Agent 可以把结论 / 待办 / 原则草稿写入同一份 `data.json`。
+
+本机 HTTP（sidecar 在 `127.0.0.1:3927`，桌面端会自动拉起）：
+
+```bash
+curl -sS -X POST http://127.0.0.1:3927/ingest \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"要不要加黄金仓位","source":"claude","todos":["看当前仓位占比"]}'
+```
+
+给 Cursor / Claude 等用的 skill 在 `skills/task-manager-capture/`。安装到本机：
+
+```bash
+cp -R skills/task-manager-capture ~/.cursor/skills/task-manager-capture
+```
+
+sidecar 没开时，skill 里的 `scripts/ingest.mjs` 会直接写 `~/.cursor/task-manager/data.json`。
+
 ## 可选：部署云端 API
 
 1. 用 Vercel 导入本仓库，Root Directory 设为 `apps/api`（或在仓库根执行 `vercel`，已包含 `apps/api/vercel.json`）

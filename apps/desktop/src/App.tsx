@@ -32,7 +32,9 @@ import {
   subscribeSync,
   syncNow,
   initLocalStore,
+  reloadLocalStore,
 } from "./lib/sync";
+import { subscribeLocalDbWatch } from "./lib/dbWatch";
 import { openInbox } from "./lib/workbench";
 import { loadSettings } from "./lib/settings";
 
@@ -55,6 +57,13 @@ function Shell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     void initLocalStore();
+    const unsub = subscribeSync(() => {
+      setSync(getSyncStatus());
+      setInboxCount(openInbox(getCachedDb()).length);
+    });
+    const unwatch = subscribeLocalDbWatch(() => {
+      void reloadLocalStore();
+    });
     void (async () => {
       try {
         const { invoke } = await import("@tauri-apps/api/core");
@@ -66,10 +75,10 @@ function Shell({ children }: { children: React.ReactNode }) {
       const show = await shouldShowOnboardingAsync();
       setOnboardOpen(show);
     })();
-    return subscribeSync(() => {
-      setSync(getSyncStatus());
-      setInboxCount(openInbox(getCachedDb()).length);
-    });
+    return () => {
+      unsub();
+      unwatch();
+    };
   }, []);
 
   useEffect(() => {

@@ -245,6 +245,7 @@ export const InboxSourceSchema = z.enum([
   "manual",
   "widget",
   "conversation",
+  "agent",
   "other",
 ]);
 export type InboxSource = z.infer<typeof InboxSourceSchema>;
@@ -318,3 +319,16 @@ export const TaskLensLinkSchema = z.object({
   lensId: z.string(),
 });
 export type TaskLensLink = z.infer<typeof TaskLensLinkSchema>;
+
+export {
+  IngestDepositSchema,
+  IngestPrincipleSchema,
+  applyIngestToDb,
+  ensureIngestCollections,
+} from "./ingest.js";
+export type {
+  IngestDeposit,
+  IngestDepositInput,
+  IngestResult,
+  IngestableDb,
+} from "./ingest.js";

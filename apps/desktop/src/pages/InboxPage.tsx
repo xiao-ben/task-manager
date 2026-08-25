@@ -18,6 +18,7 @@ const SOURCE_LABEL: Record<InboxItem["source"], string> = {
   manual: "灵感",
   widget: "小窗",
   conversation: "对话",
+  agent: "Agent",
   other: "其他",
 };
 
